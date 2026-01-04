@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pingpov_bet_bot"
+version = "0.0.1"
+description = "Bot for handling bets on telegram using Challonge's scores"
+requires-python = ">=3.8"
+keywords = ["python"]
+authors = [
+    {name = "Samuele Facenda", email = "samuele.facenda@gmail.com"},
+]
+dependencies = [
+#   "requests",
+]
+
+[project.scripts]
+main = "pingpov_bet_bot:main"
