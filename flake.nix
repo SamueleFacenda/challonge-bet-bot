@@ -35,7 +35,7 @@
               requests
               python-telegram-bot
               python-dotenv
-            ];
+            ] ++ python-telegram-bot.optional-dependencies.job-queue;
 
             build-system = with pkgs.python3Packages; [
               setuptools
