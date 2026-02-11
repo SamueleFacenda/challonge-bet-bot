@@ -12,7 +12,7 @@ async def update_token_job(context: ContextTypes.DEFAULT_TYPE, storage: Storage,
     old = storage.get_access_token()
     assert old is not None, "No access token found in storage."
     updated = api_client.refresh_token(old)
-    storage.save_access_token(updated)
+    # storage.save_access_token(updated)
     print("Access token updated in job.")
 
 def main():
@@ -22,21 +22,21 @@ def main():
     access_token = storage.get_access_token()
     updated_token = api_client.authenticate(access_token)
 
-    storage.save_access_token(updated_token)
+    # storage.save_access_token(updated_token)
     print("Access token updated.")
+
+    print("Logged in as:", api_client.get_user())
+    print("Available communities:", api_client.get_communities())
+    print("Available tournaments:", api_client.get_tournaments())
 
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
-    _ = app.bot.set_my_commands([
-        BotCommand("bet", "Place a bet on a match")
-    ])
-
-    app.job_queue.run_repeating(
-        callback=lambda context: update_token_job(context, storage, api_client),
-        interval=datetime.timedelta(days=6, hours=23), # a refres is needed every week
-        first=updated_token.expires_at - datetime.timedelta(hours=1) # the token was just updated, no negative delay
-    )
+    # app.job_queue.run_repeating(
+    #     callback=lambda context: update_token_job(context, storage, api_client),
+    #     interval=datetime.timedelta(days=6, hours=23), # a refres is needed every week
+    #     first=updated_token.expires_at - datetime.timedelta(hours=1) # the token was just updated, no negative delay
+    # )
 
     app.add_handler(CommandHandler("bet", bet))
 
-    app.run_polling()
+    # app.run_polling()
