@@ -47,11 +47,21 @@ async def rank(update, context):
 
 STATE_TOURNAMENT, STATE_PREDICTING, STATE_AMOUNT = range(3)
 
+def update_tournaments(api: ChallongeClient, storage: Storage):
+    tournaments = api.get_tournaments()
+    for tournament in tournaments:
+        current = storage.get_challonge_tournament(tournament.challonge_id)
+        if not current:
+            storage.add_challonge_tournament(tournament)
+        elif current != tournament:
+            storage.update_challonge_tournament(tournament)
+
 @ensure_user_registered
 async def bet(update, context):
     storage: Storage = context.bot_data['storage']
     api: ChallongeClient = context.bot_data['api_client']
 
+    update_tournaments(api, storage)
     tournaments = api.get_tournaments()
     tournaments = [t for t in tournaments if t.bets_open]
     if not tournaments:
@@ -150,7 +160,6 @@ async def handle_amount(update, context) -> int:
     storage: Storage = context.bot_data['storage']
     api = context.bot_data['api_client']
 
-    # TODO check if the user has enough balance, if not ask again or end the conversation
     amount = update.message.text
 
     user: User = storage.get_user(update.message.from_user.id)
@@ -163,8 +172,11 @@ async def handle_amount(update, context) -> int:
         await update.message.reply_text(f"You don't have enough balance to place this bet. Your current balance is {user.balance}. Please enter a valid amount.")
         return STATE_AMOUNT
     
-    # TODO check event didn't start
-
+    update_tournaments(api, storage)
+    updated = storage.get_challonge_tournament(context.user_data['selected_tournament'].challonge_id)
+    if not updated or not updated.bets_open:
+        await update.message.reply_text("Sorry, the tournament is no longer open for betting.")
+        return ConversationHandler.END
     
     predictions = context.user_data['predictions']
     bet = Bet(
@@ -174,8 +186,6 @@ async def handle_amount(update, context) -> int:
     )
     storage.add_bet(bet)
     storage.add_match_bets(predictions)
-
-
 
     await update.message.reply_text(f"Bet placed: {amount} on {len(context.user_data['predictions'])} matches!")
     return ConversationHandler.END
