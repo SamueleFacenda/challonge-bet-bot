@@ -9,10 +9,13 @@ description = "Bot for handling bets on telegram using Challonge's scores"
 requires-python = ">=3.8"
 keywords = ["python"]
 authors = [
-    {name = "Samuele Facenda", email = "samuele.facenda@gmail.com"},
+  {name = "Samuele Facenda", email = "samuele.facenda@gmail.com"},
 ]
 dependencies = [
-#   "requests",
+  "requests",
+  "cachetools",
+  "python-telegram-bot",
+  "python-dotenv"
 ]
 
 [project.scripts]

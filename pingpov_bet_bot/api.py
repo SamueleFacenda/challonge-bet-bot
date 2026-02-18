@@ -1,6 +1,8 @@
-from time import sleep
-from pingpov_bet_bot.storage import AccessToken
+from pingpov_bet_bot.storage import AccessToken, ChallongeMatch, ChallongeTournament
 import requests as req
+from cachetools import TTLCache, cached
+
+CACHE_MAXSIZE = 256
 
 from .conf import CHALLONGE_APIV1_TOKEN
 
@@ -42,18 +44,47 @@ class ChallongeClient:
     def get_communities(self):
         return []
         
-
-    def get_tournaments(self):
+    @cached(cache=TTLCache(maxsize=CACHE_MAXSIZE, ttl=30))
+    def get_tournaments(self) -> list[ChallongeTournament]:
         res = self.session.get(f"{API_BASE_URL}/tournaments.json", params={
             "api_key": CHALLONGE_APIV1_TOKEN,
-            "subdomain": COMMUNITY_SUBDOMAIN
+            # "subdomain": COMMUNITY_SUBDOMAIN
             })
         # print res url
         print(f"Requesting tournaments with URL: {res.url}")
+        print(res.json())
         if res.status_code == 200:
-            return res.json()
+            return [ChallongeTournament(
+                challonge_id=(t := tour['tournament'])['id'],
+                name=t['name'],
+                bets_open=t['started_at'] is None and not t['open_signup'],
+                started=t['started_at'] is not None,
+                finished=t['state'] == "ended"
+            ) for tour in res.json()]
         else:
             print(f"Failed to fetch tournaments: {res.status_code} - {res.text}")
+            return []
+
+    @cached(cache={}) # tournament matches are fixed when the tournament starts (we use the tournament state as key too)
+    def get_tournament_matches(self, tournament: ChallongeTournament) -> list[ChallongeMatch]:
+        res = self.session.get(f"{API_BASE_URL}/tournaments/{tournament.challonge_id}/matches.json", params={
+            "api_key": CHALLONGE_APIV1_TOKEN,
+        })
+        print(f"Requesting matches for tournament {tournament.name} with URL: {res.url}")
+        if res.status_code == 200:
+            return [ChallongeMatch(
+                challonge_id=(m := match['match'])['id'],
+                tournament_id=tournament.challonge_id,
+                player1_id=m['player1_id'],
+                player1_match_id=m['player1_prereq_match_id'],
+                player1_is_match_loser=m['player1_is_prereq_match_loser'], # not available in v1
+                player2_id=m['player2_id'],
+                player2_match_id=m['player2_prereq_match_id'],
+                player2_is_match_loser=m['player2_is_prereq_match_loser'], # not available in v1
+                winner_id=m['winner_id']
+            ) for match in res.json()]
+        else:
+            print(f"Failed to fetch matches for tournament {tournament.name}: {res.status_code} - {res.text}")
             return []
 
     def get_user(self):

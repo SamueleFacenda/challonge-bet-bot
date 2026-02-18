@@ -28,7 +28,7 @@ ON match_bets(challonge_tournament_id);
 CREATE TABLE IF NOT EXISTS challonge_tournaments (
     challonge_id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
-    bets_opened BOOLEAN NOT NULL,
+    bets_open BOOLEAN NOT NULL,
     started BOOLEAN NOT NULL,
     finished BOOLEAN NOT NULL
 );
@@ -94,11 +94,11 @@ class MatchBet:
     challonge_winner_id: int
     challonge_loser_id: int # kept for easier access
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class ChallongeTournament:
     challonge_id: int
     name: str
-    bets_opened: bool
+    bets_open: bool
     started: bool
     finished: bool
 
@@ -212,7 +212,7 @@ class Storage:
             return ChallongeTournament(
                 challonge_id=result[0],
                 name=result[1],
-                bets_opened=bool(result[2]),
+                bets_open=bool(result[2]),
                 started=bool(result[3]),
                 finished=bool(result[4])
             )
@@ -241,16 +241,16 @@ class Storage:
     def add_challonge_tournament(self, tournament: ChallongeTournament):
         cursor = self.conn.cursor()
         cursor.execute(
-            "INSERT OR REPLACE INTO challonge_tournaments (challonge_id, name, bets_opened, started, finished) VALUES (?, ?, ?, ?, ?)",
-            (tournament.challonge_id, tournament.name, int(tournament.bets_opened), int(tournament.started), int(tournament.finished))
+            "INSERT OR REPLACE INTO challonge_tournaments (challonge_id, name, bets_open, started, finished) VALUES (?, ?, ?, ?, ?)",
+            (tournament.challonge_id, tournament.name, int(tournament.bets_open), int(tournament.started), int(tournament.finished))
         )
         self.conn.commit()
 
     def update_challonge_tournament(self, tournament: ChallongeTournament):
         cursor = self.conn.cursor()
         cursor.execute(
-            "UPDATE challonge_tournaments SET name = ?, bets_opened = ?, started = ?, finished = ? WHERE challonge_id = ?",
-            (tournament.name, int(tournament.bets_opened), int(tournament.started), int(tournament.finished), tournament.challonge_id)
+            "UPDATE challonge_tournaments SET name = ?, bets_open = ?, started = ?, finished = ? WHERE challonge_id = ?",
+            (tournament.name, int(tournament.bets_open), int(tournament.started), int(tournament.finished), tournament.challonge_id)
         )
         self.conn.commit()
 
