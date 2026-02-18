@@ -1,8 +1,9 @@
 from .storage import Storage
 from .api import ChallongeClient
 from .conf import TELEGRAM_BOT_TOKEN
-from .commands import bet
+from .commands import bet, info, rank
 
+from telegram import BotCommand
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 async def update_token_job(context: ContextTypes.DEFAULT_TYPE):
@@ -13,6 +14,13 @@ async def update_token_job(context: ContextTypes.DEFAULT_TYPE):
     updated = api_client.refresh_token(old)
     # storage.save_access_token(updated)
     print("Access token updated in job.")
+
+async def post_init(application):
+    await application.bot.set_my_commands([
+        BotCommand("bet", "Place a bet on a tournament"),
+        BotCommand("info", "Get your current balance and info"),
+        BotCommand("rank", "Get the current user rankings"),
+    ])
 
 def main():
     storage = Storage("db.sqlite3")
@@ -31,11 +39,10 @@ def main():
     t = api_client.get_tournaments()[0]
     print(f"Matches for tournament {t.name}:", api_client.get_tournament_matches(t))
 
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).post_init(post_init).build()
 
     app.bot_data['storage'] = storage
     app.bot_data['api_client'] = api_client
-
 
     # app.job_queue.run_repeating(
     #     callback=update_token_job,
@@ -44,5 +51,7 @@ def main():
     # )
 
     app.add_handler(CommandHandler("bet", bet))
+    app.add_handler(CommandHandler("info", info))
+    app.add_handler(CommandHandler("rank", rank))
 
-    # app.run_polling()
+    app.run_polling()

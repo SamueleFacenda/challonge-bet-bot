@@ -52,7 +52,6 @@ class ChallongeClient:
             })
         # print res url
         print(f"Requesting tournaments with URL: {res.url}")
-        print(res.json())
         if res.status_code == 200:
             return [ChallongeTournament(
                 challonge_id=(t := tour['tournament'])['id'],

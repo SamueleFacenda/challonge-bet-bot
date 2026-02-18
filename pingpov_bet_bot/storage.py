@@ -154,6 +154,21 @@ class Storage:
         )
         self.conn.commit()
 
+    def get_ranking(self) -> list[User]:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT * FROM users ORDER BY balance DESC"
+        )
+        results = cursor.fetchall()
+        return [
+            User(
+                telegram_id=row[0],
+                username=row[1],
+                balance=row[2]
+            ) for row in results
+        ]
+    
+
     def get_bets_for_tournament(self, challonge_tournament_id: int) -> list[Bet]:
         cursor = self.conn.cursor()
         cursor.execute(
