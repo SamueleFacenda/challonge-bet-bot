@@ -74,6 +74,7 @@ class ChallongeClient:
             return [ChallongeMatch(
                 challonge_id=(m := match['match'])['id'],
                 tournament_id=tournament.challonge_id,
+                name=m['identifier'],
                 player1_id=m['player1_id'],
                 player1_match_id=m['player1_prereq_match_id'],
                 player1_is_match_loser=m['player1_is_prereq_match_loser'], # not available in v1
@@ -81,7 +82,6 @@ class ChallongeClient:
                 player2_match_id=m['player2_prereq_match_id'],
                 player2_is_match_loser=m['player2_is_prereq_match_loser'], # not available in v1
                 winner_id=m['winner_id']
-                # TODO use identifier as name
             ) for match in res.json()]
         else:
             print(f"Failed to fetch matches for tournament {tournament.name}: {res.status_code} - {res.text}")

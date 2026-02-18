@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS challonge_tournaments (
 CREATE TABLE IF NOT EXISTS challonge_matches (
     challonge_id INTEGER PRIMARY KEY,
     tournament_id INTEGER NOT NULL,
+    name TEXT,
     player1_id INTEGER,
     player1_match_id INTEGER,
     player1_is_match_loser BOOLEAN,
@@ -102,6 +103,7 @@ class ChallongeTournament:
 class ChallongeMatch:
     challonge_id: int
     tournament_id: int
+    name: str
     player1_id: int|None
     player1_match_id: int|None
     player1_is_match_loser: bool|None
@@ -236,13 +238,14 @@ class Storage:
             ChallongeMatch(
                 challonge_id=row[0],
                 tournament_id=row[1],
-                player1_id=row[2],
-                player1_match_id=row[3],
-                player1_is_match_loser=bool(row[4]) if row[4] is not None else None,
-                player2_id=row[5],
-                player2_match_id=row[6],
-                player2_is_match_loser=bool(row[7]) if row[7] is not None else None,
-                winner_id=row[8]
+                name=row[2],
+                player1_id=row[3],
+                player1_match_id=row[4],
+                player1_is_match_loser=bool(row[5]) if row[5] is not None else None,
+                player2_id=row[6],
+                player2_match_id=row[7],
+                player2_is_match_loser=bool(row[8]) if row[8] is not None else None,
+                winner_id=row[9]
             ) for row in results
         ]
     
@@ -265,8 +268,8 @@ class Storage:
     def add_challonge_matches(self, matches: list[ChallongeMatch]):
         cursor = self.conn.cursor()
         cursor.executemany(
-            "INSERT OR REPLACE INTO challonge_matches (challonge_id, tournament_id, player1_id, player1_match_id, player1_is_match_loser, player2_id, player2_match_id, player2_is_match_loser, winner_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [(m.challonge_id, m.tournament_id, m.player1_id, m.player1_match_id, int(m.player1_is_match_loser) if m.player1_is_match_loser is not None else None, m.player2_id, m.player2_match_id, int(m.player2_is_match_loser) if m.player2_is_match_loser is not None else None, m.winner_id) for m in matches]
+            "INSERT OR REPLACE INTO challonge_matches (challonge_id, tournament_id, match, player1_id, player1_match_id, player1_is_match_loser, player2_id, player2_match_id, player2_is_match_loser, winner_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [(m.challonge_id, m.tournament_id, m.name, m.player1_id, m.player1_match_id, int(m.player1_is_match_loser) if m.player1_is_match_loser is not None else None, m.player2_id, m.player2_match_id, int(m.player2_is_match_loser) if m.player2_is_match_loser is not None else None, m.winner_id) for m in matches]
         )
         self.conn.commit()
 
