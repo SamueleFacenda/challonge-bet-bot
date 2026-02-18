@@ -1,10 +1,10 @@
 from .storage import Storage
 from .api import ChallongeClient
 from .conf import TELEGRAM_BOT_TOKEN
-from .commands import bet, info, rank
+from .commands import bet, info, rank, select_tournament, handle_prediction, handle_amount, STATE_AMOUNT, STATE_PREDICTING, STATE_TOURNAMENT
 
 from telegram import BotCommand
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, ConversationHandler, MessageHandler, filters
 
 async def update_token_job(context: ContextTypes.DEFAULT_TYPE):
     storage: Storage = context.bot_data['storage']
@@ -50,7 +50,17 @@ def main():
     #     first=updated_token.expires_at - datetime.timedelta(hours=1) # the token was just updated, no negative delay
     # )
 
-    app.add_handler(CommandHandler("bet", bet))
+    bet_handler = ConversationHandler(
+        entry_points=[CommandHandler("bet", bet)],
+        states={
+            STATE_TOURNAMENT: [CallbackQueryHandler(select_tournament)],
+            STATE_PREDICTING: [CallbackQueryHandler(handle_prediction)],
+            STATE_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_amount)],
+        },
+        fallbacks=[],
+    )
+
+    app.add_handler(bet_handler)
     app.add_handler(CommandHandler("info", info))
     app.add_handler(CommandHandler("rank", rank))
 

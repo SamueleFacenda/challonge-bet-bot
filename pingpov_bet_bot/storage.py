@@ -6,9 +6,7 @@ INIT_QUERY = """
 CREATE TABLE IF NOT EXISTS bets (
     user_id INTEGER NOT NULL,
     challonge_tournament_id INTEGER NOT NULL,
-    amount REAL NOT NULL,
-    prediction TEXT NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    amount REAL NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_bets_tournament 
@@ -83,8 +81,6 @@ class Bet:
     user_id: int
     challonge_tournament_id: int
     amount: float
-    prediction: str
-    timestamp: datetime
 
 @dataclass
 class MatchBet:
@@ -167,7 +163,6 @@ class Storage:
                 balance=row[2]
             ) for row in results
         ]
-    
 
     def get_bets_for_tournament(self, challonge_tournament_id: int) -> list[Bet]:
         cursor = self.conn.cursor()
@@ -179,9 +174,7 @@ class Storage:
             Bet(
                 user_id=row[0],
                 challonge_tournament_id=row[1],
-                amount=row[2],
-                prediction=row[3],
-                timestamp=datetime.fromisoformat(row[4])
+                amount=row[2]
             ) for row in results
         ]
     
@@ -204,8 +197,8 @@ class Storage:
     def add_bet(self, bet: Bet):
         cursor = self.conn.cursor()
         cursor.execute(
-            "INSERT INTO bets (user_id, challonge_tournament_id, amount, prediction) VALUES (?, ?, ?, ?)",
-            (bet.user_id, bet.challonge_tournament_id, bet.amount, bet.prediction)
+            "INSERT INTO bets (user_id, challonge_tournament_id, amount) VALUES (?, ?, ?)",
+            (bet.user_id, bet.challonge_tournament_id, bet.amount)
         )
         self.conn.commit()
 

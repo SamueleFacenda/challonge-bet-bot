@@ -85,6 +85,18 @@ class ChallongeClient:
         else:
             print(f"Failed to fetch matches for tournament {tournament.name}: {res.status_code} - {res.text}")
             return []
+        
+    @cached(cache={})
+    def get_tournament_players(self, tournament: ChallongeTournament) -> dict[int, dict[str, str]]:
+        res = self.session.get(f"{API_BASE_URL}/tournaments/{tournament.challonge_id}/participants.json", params={
+            "api_key": CHALLONGE_APIV1_TOKEN,
+        })
+        print(f"Requesting players for tournament {tournament.name} with URL: {res.url}")
+        if res.status_code == 200:
+            return {(p := part['participant'])['id']: p for part in res.json()}
+        else:
+            print(f"Failed to fetch players for tournament {tournament.name}: {res.status_code} - {res.text}")
+            return {}
 
     def get_user(self):
         return None
