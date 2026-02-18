@@ -100,32 +100,14 @@ async def ask_match(update, context) -> int:
 
     if len(matches):
         match: ChallongeMatch = matches[0]
-        player_one: int|None = match.player1_id
-        if player_one is None:
-            for pred in context.user_data['predictions']:
-                if pred.challonge_match_id == match.player1_match_id:
-                    if match.player1_is_match_loser:
-                        player_one = pred.challonge_loser_id
-                    else:
-                        player_one = pred.challonge_winner_id
-                    break
-        player_two: int|None = match.player2_id
-        if player_two is None:
-            for pred in context.user_data['predictions']:
-                if pred.challonge_match_id == match.player2_match_id:
-                    if match.player2_is_match_loser:
-                        player_two = pred.challonge_loser_id
-                    else:
-                        player_two = pred.challonge_winner_id
-                    break
 
         players = api.get_tournament_players(context.user_data['selected_tournament'])
-        player_one_name = players[player_one]['name'] if player_one in players else str(player_one)
-        player_two_name = players[player_two]['name'] if player_two in players else str(player_two)
+        player_one_name = players[match.player1_id]['name'] if match.player1_id in players else str(match.player1_id)
+        player_two_name = players[match.player2_id]['name'] if match.player2_id in players else str(match.player2_id)
 
         keyboard = [
-            [InlineKeyboardButton(player_one_name, callback_data=str(player_one)),
-             InlineKeyboardButton(player_two_name, callback_data=str(player_two))]
+            [InlineKeyboardButton(player_one_name, callback_data=str(match.player1_id)),
+             InlineKeyboardButton(player_two_name, callback_data=str(match.player2_id))]
         ]
         text = f"Match {n_predictions + 1}/{len(matches) + n_predictions}: Who will win?\n{player_one_name} vs {player_two_name}"
         
@@ -151,10 +133,24 @@ async def handle_prediction(update, context) -> int:
         challonge_loser_id=loser_id
     )
     context.user_data['predictions'].append(prediction)
+    propagate_prediction_to_dependent_matches(context.user_data['matches'], prediction)
     
     # Move to next match
     context.user_data['matches'] = context.user_data['matches'][1:]
     return await ask_match(update, context)
+
+def propagate_prediction_to_dependent_matches(matches: list[ChallongeMatch], prediction: MatchBet):
+    for match in matches:
+        if match.player1_match_id == prediction.challonge_match_id:
+            if match.player1_is_match_loser:
+                match.player1_id = prediction.challonge_loser_id
+            else:
+                match.player1_id = prediction.challonge_winner_id
+        elif match.player2_match_id == prediction.challonge_match_id:
+            if match.player2_is_match_loser:
+                match.player2_id = prediction.challonge_loser_id
+            else:
+                match.player2_id = prediction.challonge_winner_id
 
 async def handle_amount(update, context) -> int:
     storage: Storage = context.bot_data['storage']
