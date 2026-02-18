@@ -56,8 +56,8 @@ class ChallongeClient:
             return [ChallongeTournament(
                 challonge_id=(t := tour['tournament'])['id'],
                 name=t['name'],
-                bets_open=t['started_at'] is None and not t['open_signup'],
-                started=t['started_at'] is not None,
+                subscriptions_closed=t['started_at'] is not None,
+                started=False, # computed only later
                 finished=t['state'] == "ended"
             ) for tour in res.json()]
         else:
@@ -74,7 +74,7 @@ class ChallongeClient:
             return [ChallongeMatch(
                 challonge_id=(m := match['match'])['id'],
                 tournament_id=tournament.challonge_id,
-                name=m['identifier'],
+                started=m['underway_at'] is not None,
                 player1_id=m['player1_id'],
                 player1_match_id=m['player1_prereq_match_id'],
                 player1_is_match_loser=m['player1_is_prereq_match_loser'], # not available in v1

@@ -26,7 +26,7 @@ ON match_bets(challonge_tournament_id);
 CREATE TABLE IF NOT EXISTS challonge_tournaments (
     challonge_id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
-    bets_open BOOLEAN NOT NULL,
+    subscriptions_closed BOOLEAN NOT NULL,
     started BOOLEAN NOT NULL,
     finished BOOLEAN NOT NULL
 );
@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS challonge_tournaments (
 CREATE TABLE IF NOT EXISTS challonge_matches (
     challonge_id INTEGER PRIMARY KEY,
     tournament_id INTEGER NOT NULL,
+    started BOOLEAN NOT NULL,
     player1_id INTEGER,
     player1_match_id INTEGER,
     player1_is_match_loser BOOLEAN,
@@ -94,7 +95,7 @@ class MatchBet:
 class ChallongeTournament:
     challonge_id: int
     name: str
-    bets_open: bool
+    subscriptions_closed: bool
     started: bool
     finished: bool
 
@@ -102,6 +103,7 @@ class ChallongeTournament:
 class ChallongeMatch:
     challonge_id: int
     tournament_id: int
+    started: bool
     player1_id: int|None
     player1_match_id: int|None
     player1_is_match_loser: bool|None
@@ -220,7 +222,7 @@ class Storage:
             return ChallongeTournament(
                 challonge_id=result[0],
                 name=result[1],
-                bets_open=bool(result[2]),
+                subscriptions_closed=bool(result[2]),
                 started=bool(result[3]),
                 finished=bool(result[4])
             )
@@ -229,44 +231,61 @@ class Storage:
     def get_challonge_matches_for_tournament(self, tournament_id: int) -> list[ChallongeMatch]:
         cursor = self.conn.cursor()
         cursor.execute(
-            "SELECT * FROM challonge_matches WHERE tournament_id = ?", (tournament_id,)
+            "SELECT * FROM challonge_matches WHERE tournament_id = ? ORDER BY challonge_id", (tournament_id,)
         )
         results = cursor.fetchall()
         return [
             ChallongeMatch(
                 challonge_id=row[0],
                 tournament_id=row[1],
-                player1_id=row[2],
-                player1_match_id=row[3],
-                player1_is_match_loser=bool(row[4]) if row[4] is not None else None,
-                player2_id=row[5],
-                player2_match_id=row[6],
-                player2_is_match_loser=bool(row[7]) if row[7] is not None else None,
-                winner_id=row[8]
+                started=bool(row[2]),
+                player1_id=row[3],
+                player1_match_id=row[4],
+                player1_is_match_loser=bool(row[5]) if row[5] is not None else None,
+                player2_id=row[6],
+                player2_match_id=row[7],
+                player2_is_match_loser=bool(row[8]) if row[8] is not None else None,
+                winner_id=row[9]
+            ) for row in results
+        ]
+    
+    def get_bettable_tournaments(self) -> list[ChallongeTournament]:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT * FROM challonge_tournaments WHERE subscriptions_closed = 1 AND started = 0"
+        )
+        results = cursor.fetchall()
+        return [
+            ChallongeTournament(
+                challonge_id=row[0],
+                name=row[1],
+                subscriptions_closed=bool(row[2]),
+                started=bool(row[3]),
+                finished=bool(row[4])
             ) for row in results
         ]
     
     def add_challonge_tournament(self, tournament: ChallongeTournament):
         cursor = self.conn.cursor()
         cursor.execute(
-            "INSERT OR REPLACE INTO challonge_tournaments (challonge_id, name, bets_open, started, finished) VALUES (?, ?, ?, ?, ?)",
-            (tournament.challonge_id, tournament.name, int(tournament.bets_open), int(tournament.started), int(tournament.finished))
+            "INSERT OR REPLACE INTO challonge_tournaments (challonge_id, name, subscriptions_closed, started, finished) VALUES (?, ?, ?, ?, ?)",
+            (tournament.challonge_id, tournament.name, int(tournament.subscriptions_closed), int(tournament.started), int(tournament.finished))
         )
         self.conn.commit()
 
     def update_challonge_tournament(self, tournament: ChallongeTournament):
         cursor = self.conn.cursor()
         cursor.execute(
-            "UPDATE challonge_tournaments SET name = ?, bets_open = ?, started = ?, finished = ? WHERE challonge_id = ?",
-            (tournament.name, int(tournament.bets_open), int(tournament.started), int(tournament.finished), tournament.challonge_id)
+            "UPDATE challonge_tournaments SET name = ?, subscriptions_closed = ?, started = ?, finished = ? WHERE challonge_id = ?",
+            (tournament.name, int(tournament.subscriptions_closed), int(tournament.started), int(tournament.finished), tournament.challonge_id)
         )
         self.conn.commit()
 
     def add_challonge_matches(self, matches: list[ChallongeMatch]):
         cursor = self.conn.cursor()
         cursor.executemany(
-            "INSERT OR REPLACE INTO challonge_matches (challonge_id, tournament_id, player1_id, player1_match_id, player1_is_match_loser, player2_id, player2_match_id, player2_is_match_loser, winner_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [(m.challonge_id, m.tournament_id, m.player1_id, m.player1_match_id, int(m.player1_is_match_loser) if m.player1_is_match_loser is not None else None, m.player2_id, m.player2_match_id, int(m.player2_is_match_loser) if m.player2_is_match_loser is not None else None, m.winner_id) for m in matches]
+            "INSERT OR REPLACE INTO challonge_matches (challonge_id, tournament_id, started, player1_id, player1_match_id, player1_is_match_loser, player2_id, player2_match_id, player2_is_match_loser, winner_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [(m.challonge_id, m.tournament_id, int(m.started), m.player1_id, m.player1_match_id, int(m.player1_is_match_loser) if m.player1_is_match_loser is not None else None, m.player2_id, m.player2_match_id, int(m.player2_is_match_loser) if m.player2_is_match_loser is not None else None, m.winner_id) for m in matches]
         )
         self.conn.commit()
 

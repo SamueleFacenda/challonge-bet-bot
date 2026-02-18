@@ -51,6 +51,13 @@ def update_tournaments(api: ChallongeClient, storage: Storage):
     tournaments = api.get_tournaments()
     for tournament in tournaments:
         current = storage.get_challonge_tournament(tournament.challonge_id)
+        if not current or current.subscriptions_closed:
+            matches = api.get_tournament_matches(tournament)
+            tournament.started = any(match.started for match in matches)
+            if (not current and tournament.subscriptions_closed) or (current and not current.subscriptions_closed and tournament.subscriptions_closed):
+                # Store the matches when the tournament subscriptions are closed
+                storage.add_challonge_matches(matches)
+
         if not current:
             storage.add_challonge_tournament(tournament)
         elif current != tournament:
@@ -62,21 +69,19 @@ async def bet(update, context):
     api: ChallongeClient = context.bot_data['api_client']
 
     update_tournaments(api, storage)
-    tournaments = api.get_tournaments()
-    tournaments = [t for t in tournaments if t.bets_open]
+    tournaments = storage.get_bettable_tournaments()
     if not tournaments:
         await update.message.reply_text("Sorry, there are currently no tournaments open for betting.")
-        return
+        return ConversationHandler.END
     
     keyboard = [
-         [InlineKeyboardButton(t.name, callback_data=str(t.challonge_id)) for t in tournaments]
+        [InlineKeyboardButton(t.name, callback_data=str(t.challonge_id)) for t in tournaments]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Please select a tournament to bet on:", reply_markup=reply_markup)
     return STATE_TOURNAMENT
 
 async def select_tournament(update: Update, context):
-    api: ChallongeClient = context.bot_data['api_client']
     storage: Storage = context.bot_data['storage']
 
     query = update.callback_query
@@ -85,12 +90,12 @@ async def select_tournament(update: Update, context):
 
     bets = storage.get_bets_for_tournament(tournament.challonge_id)
     if any(bet.user_id == query.from_user.id for bet in bets):
-        await update.message.reply_text("Sorry, you have already placed a bet on this tournament.")
+        await query.message.reply_text("Sorry, you have already placed a bet on this tournament.")
         return ConversationHandler.END
 
     context.user_data['selected_tournament'] = tournament
     context.user_data['predictions'] = [] # [MatchBet(...), ...]
-    context.user_data['to_predict'] = api.get_tournament_matches(tournament)
+    context.user_data['to_predict'] = storage.get_challonge_matches_for_tournament(tournament.challonge_id)
     return await ask_match(update, context)
 
 async def ask_match(update, context) -> int:
@@ -142,15 +147,9 @@ async def handle_prediction(update, context) -> int:
 def propagate_prediction_to_dependent_matches(matches: list[ChallongeMatch], prediction: MatchBet):
     for match in matches:
         if match.player1_match_id == prediction.challonge_match_id:
-            if match.player1_is_match_loser:
-                match.player1_id = prediction.challonge_loser_id
-            else:
-                match.player1_id = prediction.challonge_winner_id
-        elif match.player2_match_id == prediction.challonge_match_id:
-            if match.player2_is_match_loser:
-                match.player2_id = prediction.challonge_loser_id
-            else:
-                match.player2_id = prediction.challonge_winner_id
+            match.player1_id = prediction.challonge_loser_id if match.player1_is_match_loser else prediction.challonge_winner_id
+        if match.player2_match_id == prediction.challonge_match_id:
+            match.player2_id = prediction.challonge_loser_id if match.player2_is_match_loser else prediction.challonge_winner_id
 
 async def handle_amount(update, context) -> int:
     storage: Storage = context.bot_data['storage']
@@ -164,20 +163,21 @@ async def handle_amount(update, context) -> int:
         return STATE_AMOUNT
     amount = int(amount)
 
+    # TODO take into account placed bets too
     if amount > user.balance:
         await update.message.reply_text(f"You don't have enough balance to place this bet. Your current balance is {user.balance}. Please enter a valid amount.")
         return STATE_AMOUNT
     
     update_tournaments(api, storage)
     updated = storage.get_challonge_tournament(context.user_data['selected_tournament'].challonge_id)
-    if not updated or not updated.bets_open:
+    if updated and updated.started: # check if the tournament started in the meantime
         await update.message.reply_text("Sorry, the tournament is no longer open for betting.")
         return ConversationHandler.END
     
     predictions = context.user_data['predictions']
     bet = Bet(
         user_id=update.message.from_user.id,
-        challonge_tournament_id=context.user_data['selected_tournament'],
+        challonge_tournament_id=context.user_data['selected_tournament'].challonge_id,
         amount=amount
     )
     storage.add_bet(bet)
