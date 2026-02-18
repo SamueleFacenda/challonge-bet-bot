@@ -109,7 +109,7 @@ async def ask_match(update, context) -> int:
             [InlineKeyboardButton(player_one_name, callback_data=str(match.player1_id)),
              InlineKeyboardButton(player_two_name, callback_data=str(match.player2_id))]
         ]
-        text = f"Match {n_predictions + 1}/{len(matches) + n_predictions}: Who will win?\n{player_one_name} vs {player_two_name} for match `{match.name}`"
+        text = f"Match {n_predictions + 1}/{len(matches) + n_predictions}: who will win?"
         
         await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
         return STATE_PREDICTING
