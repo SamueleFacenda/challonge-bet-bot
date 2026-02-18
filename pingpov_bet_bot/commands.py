@@ -69,7 +69,7 @@ async def bet(update, context):
         return
     
     keyboard = [
-         [InlineKeyboardButton(t.name, callback_data=t) for t in tournaments]
+         [InlineKeyboardButton(t.name, callback_data=str(t.challonge_id)) for t in tournaments]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Please select a tournament to bet on:", reply_markup=reply_markup)
@@ -81,7 +81,7 @@ async def select_tournament(update: Update, context):
 
     query = update.callback_query
     await query.answer()
-    tournament: ChallongeTournament = query.data
+    tournament: ChallongeTournament = storage.get_challonge_tournament(int(query.data))
 
     bets = storage.get_bets_for_tournament(tournament.challonge_id)
     if any(bet.user_id == query.from_user.id for bet in bets):
@@ -89,21 +89,21 @@ async def select_tournament(update: Update, context):
         return ConversationHandler.END
 
     context.user_data['selected_tournament'] = tournament
-    context.user_data['predictions'] = [] # [(match_id, winner_id, loser_id),...]
+    context.user_data['predictions'] = [] # [MatchBet(...), ...]
     context.user_data['to_predict'] = api.get_tournament_matches(tournament)
     return await ask_match(update, context)
 
 async def ask_match(update, context) -> int:
     api: ChallongeClient = context.bot_data['api_client']
-    matches: list[ChallongeMatch] = context.user_data['matches']
+    matches: list[ChallongeMatch] = context.user_data['to_predict']
     n_predictions = len(context.user_data['predictions'])
 
     if len(matches):
         match: ChallongeMatch = matches[0]
 
         players = api.get_tournament_players(context.user_data['selected_tournament'])
-        player_one_name = players[match.player1_id]['name'] if match.player1_id in players else str(match.player1_id)
-        player_two_name = players[match.player2_id]['name'] if match.player2_id in players else str(match.player2_id)
+        player_one_name = players[match.player1_id]['display_name'] if match.player1_id in players else str(match.player1_id)
+        player_two_name = players[match.player2_id]['display_name'] if match.player2_id in players else str(match.player2_id)
 
         keyboard = [
             [InlineKeyboardButton(player_one_name, callback_data=str(match.player1_id)),
@@ -122,7 +122,7 @@ async def handle_prediction(update, context) -> int:
     await query.answer()
     
     # Save selection
-    current_match = context.user_data['matches'][0]
+    current_match = context.user_data['to_predict'][0]
     winner_id = int(query.data)
     loser_id = current_match.player1_id if winner_id == current_match.player2_id else current_match.player2_id
     prediction = MatchBet(
@@ -133,10 +133,10 @@ async def handle_prediction(update, context) -> int:
         challonge_loser_id=loser_id
     )
     context.user_data['predictions'].append(prediction)
-    propagate_prediction_to_dependent_matches(context.user_data['matches'], prediction)
+    propagate_prediction_to_dependent_matches(context.user_data['to_predict'], prediction)
     
     # Move to next match
-    context.user_data['matches'] = context.user_data['matches'][1:]
+    context.user_data['to_predict'] = context.user_data['to_predict'][1:]
     return await ask_match(update, context)
 
 def propagate_prediction_to_dependent_matches(matches: list[ChallongeMatch], prediction: MatchBet):
