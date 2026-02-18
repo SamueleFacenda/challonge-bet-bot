@@ -27,7 +27,7 @@ def main():
 
     print("Logged in as:", api_client.get_user())
     print("Available communities:", api_client.get_communities())
-    print("Available tournaments:", api_client.get_tournaments())
+    print("Available tournaments:", api_client.get_tournaments()[0])
 
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
