@@ -22,6 +22,14 @@ async def post_init(application):
         BotCommand("rank", "Get the current user rankings"),
     ])
 
+async def bet_not_in_group(update, context):
+    bot_username = context.bot.username
+    deep_link = f"https://t.me/{bot_username}?start=bet"
+    await update.message.reply_text(
+        f"⚠️ The /bet command is only available in private chats with the bot.\n\n"
+        f"Click here to start: {deep_link}"
+    )
+    
 def main():
     storage = Storage("db.sqlite3")
     api_client = ChallongeClient()
@@ -51,14 +59,15 @@ def main():
     # )
 
     bet_handler = ConversationHandler(
-        entry_points=[CommandHandler("bet", bet)],
+        entry_points=[CommandHandler("bet", bet, filters=filters.ChatType.PRIVATE)],
         states={
             STATE_TOURNAMENT: [CallbackQueryHandler(select_tournament)],
             STATE_PREDICTING: [CallbackQueryHandler(handle_prediction)],
             STATE_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_amount)],
         },
-        fallbacks=[],
+        fallbacks=[]
     )
+    app.add_handler(CommandHandler("bet", bet_not_in_group, filters=~filters.ChatType.PRIVATE))
 
     app.add_handler(bet_handler)
     app.add_handler(CommandHandler("info", info))
