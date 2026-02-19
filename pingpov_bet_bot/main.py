@@ -1,12 +1,21 @@
 from .storage import Storage
 from .api import ChallongeClient
 from .conf import TELEGRAM_BOT_TOKEN
-from .commands import start, help, bet, info, rank, select_tournament, handle_prediction, handle_amount, STATE_AMOUNT, STATE_PREDICTING, STATE_TOURNAMENT
+from .commands import start, help, bet_not_in_group, bet, info, rank, select_tournament, handle_prediction, handle_amount, STATE_AMOUNT, STATE_PREDICTING, STATE_TOURNAMENT
 from .outcome_computer import check_finished_tournaments
 from .broadcast import track_group_chats
 
 from telegram import BotCommand
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, ConversationHandler, MessageHandler, filters, ChatMemberHandler
+
+COMMANDS = [
+    # command, handler, description, filter
+    ("start", start, "Start the bot and get a welcome message", None),
+    ("bet", bet_not_in_group, "Place a bet on a tournament", ~filters.ChatType.PRIVATE),
+    ("help", help, "Get a list of available commands and how to use them", None),
+    ("info", info, "Get your current balance and info", None),
+    ("rank", rank, "Get the current user rankings", None),
+]
 
 async def update_token_job(context: ContextTypes.DEFAULT_TYPE):
     storage: Storage = context.bot_data['storage']
@@ -18,21 +27,7 @@ async def update_token_job(context: ContextTypes.DEFAULT_TYPE):
     print("Access token updated in job.")
 
 async def post_init(application):
-    await application.bot.set_my_commands([
-        BotCommand("start", "Start the bot and get a welcome message"),
-        BotCommand("bet", "Place a bet on a tournament"),
-        BotCommand("help", "Get a list of available commands and how to use them"),
-        BotCommand("info", "Get your current balance and info"),
-        BotCommand("rank", "Get the current user rankings"),
-    ])
-
-async def bet_not_in_group(update, context):
-    bot_username = context.bot.username
-    deep_link = f"https://t.me/{bot_username}?start=bet"
-    await update.message.reply_text(
-        f"⚠️ The /bet command is only available in private chats with the bot.\n\n"
-        f"Click here to start: {deep_link}"
-    )
+    await application.bot.set_my_commands([BotCommand(command, description) for command, _, description, _ in COMMANDS])
 
 def main():
     storage = Storage("db.sqlite3")
@@ -67,6 +62,8 @@ def main():
         interval=60, # check every minute for finished tournaments
     )
 
+    app.add_handler(ChatMemberHandler(track_group_chats, ChatMemberHandler.MY_CHAT_MEMBER))
+
     bet_handler = ConversationHandler(
         entry_points=[CommandHandler("bet", bet, filters=filters.ChatType.PRIVATE)],
         states={
@@ -76,13 +73,10 @@ def main():
         },
         fallbacks=[]
     )
-    app.add_handler(CommandHandler("bet", bet_not_in_group, filters=~filters.ChatType.PRIVATE))
 
     app.add_handler(bet_handler)
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help))
-    app.add_handler(CommandHandler("info", info))
-    app.add_handler(CommandHandler("rank", rank))
-    app.add_handler(ChatMemberHandler(track_group_chats, ChatMemberHandler.MY_CHAT_MEMBER))
+    for command, handler, _, filter in COMMANDS:
+        app.add_handler(CommandHandler(command, handler, filters=filter))
+
 
     app.run_polling()

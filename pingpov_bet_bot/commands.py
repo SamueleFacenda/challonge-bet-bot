@@ -107,6 +107,15 @@ def update_tournaments(api: ChallongeClient, storage: Storage):
             storage.update_challonge_tournament(tournament)
 
 @command
+async def bet_not_in_group(update, context):
+    bot_username = context.bot.username
+    deep_link = f"https://t.me/{bot_username}?start=bet"
+    await update.message.reply_text(
+        f"⚠️ The /bet command is only available in private chats with the bot.\n\n"
+        f"Click here to start: {deep_link}"
+    )
+
+@command
 async def bet(update, context):
     storage: Storage = context.bot_data['storage']
     api: ChallongeClient = context.bot_data['api_client']
