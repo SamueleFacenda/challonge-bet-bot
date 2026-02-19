@@ -2,17 +2,17 @@ from .storage import Storage
 from pingpov_bet_bot import storage
 
 
-def send_to_all_private_chats(context, message: str):
+async def send_to_all_private_chats(context, message: str):
     storage: Storage = context.bot_data['storage']
     chats = storage.get_private_chats()
     for chat_id in chats:
-        context.bot.send_message(chat_id=chat_id, text=message)
+        await context.bot.send_message(chat_id=chat_id, text=message)
 
-def send_to_all_group_chats(context, message: str):
+async def send_to_all_group_chats(context, message: str):
     storage: Storage = context.bot_data['storage']
     chats = storage.get_group_chats()
     for chat_id in chats:
-        context.bot.send_message(chat_id=chat_id, text=message)
+        await context.bot.send_message(chat_id=chat_id, text=message)
 
 async def track_group_chats(update, context):
     storage: Storage = context.bot_data['storage']
@@ -31,6 +31,10 @@ async def track_group_chats(update, context):
         print(f"Removed group {chat_id} from database.")
 
 def track_private_chats(func):
+    """
+    Decorator to track private chats when users interact with the bot in private messages.
+    To be used on command handlers.
+    """
     async def wrapper(update, context):
         storage: Storage = context.bot_data['storage']
         chat_id = update.effective_chat.id

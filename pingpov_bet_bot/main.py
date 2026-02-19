@@ -23,28 +23,24 @@ async def update_token_job(context: ContextTypes.DEFAULT_TYPE):
     old = storage.get_access_token()
     assert old is not None, "No access token found in storage."
     updated = api_client.refresh_token(old)
-    # storage.save_access_token(updated)
+    storage.save_access_token(updated)
     print("Access token updated in job.")
 
 async def post_init(application):
-    await application.bot.set_my_commands([BotCommand(command, description) for command, _, description, _ in COMMANDS])
+    commands = [BotCommand(command, description) for command, _, description, _ in COMMANDS]
+    await application.bot.set_my_commands(commands)
 
 def main():
     storage = Storage("db.sqlite3")
     api_client = ChallongeClient()
+
+    storage.add_chat(-5158183686, True) # TODO remove this, just for testing
 
     access_token = storage.get_access_token()
     updated_token = api_client.authenticate(access_token)
 
     # storage.save_access_token(updated_token)
     # print("Access token updated.")
-
-    # print("Logged in as:", api_client.get_user())
-    # print("Available communities:", api_client.get_communities())
-    # print("Available tournaments:", api_client.get_tournaments())
-
-    # t = api_client.get_tournaments()[0]
-    # print(f"Matches for tournament {t.name}:", api_client.get_tournament_matches(t))
 
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).post_init(post_init).build()
 
@@ -59,7 +55,7 @@ def main():
 
     app.job_queue.run_repeating(
         callback=check_finished_tournaments,
-        interval=60, # check every minute for finished tournaments
+        interval=10, # check every minute for finished tournaments TODO make configurable
     )
 
     app.add_handler(ChatMemberHandler(track_group_chats, ChatMemberHandler.MY_CHAT_MEMBER))
@@ -71,12 +67,11 @@ def main():
             STATE_PREDICTING: [CallbackQueryHandler(handle_prediction)],
             STATE_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_amount)],
         },
-        fallbacks=[]
+        fallbacks=[] # do nothing, transaction is finalized only at the end
     )
 
     app.add_handler(bet_handler)
     for command, handler, _, filter in COMMANDS:
         app.add_handler(CommandHandler(command, handler, filters=filter))
-
 
     app.run_polling()

@@ -38,8 +38,8 @@ class ChallongeClient:
         return None
 
 
-    def refresh_token(self, old: AccessToken) -> None|AccessToken:
-        return None
+    def refresh_token(self, old: AccessToken) -> AccessToken:
+        return None # type: ignore not used
 
     def get_communities(self):
         return []
@@ -48,7 +48,7 @@ class ChallongeClient:
     def get_tournaments(self) -> list[ChallongeTournament]:
         res = self.session.get(f"{API_BASE_URL}/tournaments.json", params={
             "api_key": CHALLONGE_APIV1_TOKEN,
-            # "subdomain": COMMUNITY_SUBDOMAIN
+            # "subdomain": COMMUNITY_SUBDOMAIN TODO use this community
             })
         # print res url
         print(f"Requesting tournaments with URL: {res.url}")
@@ -58,7 +58,7 @@ class ChallongeClient:
                 name=t['name'],
                 subscriptions_closed=t['started_at'] is not None,
                 started=False, # computed only later
-                finished=t['state'] == "ended",
+                finished=t['completed_at'] is not None,
                 outcome_computed=False, # computed later
             ) for tour in res.json()]
         else:
@@ -88,7 +88,7 @@ class ChallongeClient:
             print(f"Failed to fetch matches for tournament {tournament.name}: {res.status_code} - {res.text}")
             return []
         
-    @cached(cache={})
+    @cached(cache={}) # no ttl, use tournament state as key too
     def get_tournament_players(self, tournament: ChallongeTournament) -> dict[int, dict[str, str]]:
         res = self.session.get(f"{API_BASE_URL}/tournaments/{tournament.challonge_id}/participants.json", params={
             "api_key": CHALLONGE_APIV1_TOKEN,

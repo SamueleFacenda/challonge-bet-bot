@@ -11,12 +11,13 @@ async def check_finished_tournaments(context):
     update_tournaments(api, storage) # update tournaments to get the latest status
     for tour in storage.get_tournaments_not_finalized():
         if tour.finished and not tour.outcome_computed:
-            handle_tournament_finished(context, tour)
+            print(f"Tournament {tour.name} is finished but outcome not computed, computing now...")
+            await handle_tournament_finished(context, tour)
 
             tour.outcome_computed = True
             storage.update_challonge_tournament(tour)
 
-def handle_tournament_finished(context, tournament: ChallongeTournament):
+async def handle_tournament_finished(context, tournament: ChallongeTournament):
     storage: Storage = context.bot_data['storage']
     api: ChallongeClient = context.bot_data['api_client']
     
@@ -55,9 +56,9 @@ def handle_tournament_finished(context, tournament: ChallongeTournament):
         user: User = storage.get_user(user_id) # type: ignore user exists because they placed a bet
         user.balance += result
         storage.update_user(user)
-        context.bot.send_message(chat_id=user_id, text=f"🏆 Tournament '{tournament.name}' has finished!\n\n{user_messages[user_id]}Your new balance is {user.balance:.2f} coins, delta is {result:.2f}.")
+        await context.bot.send_message(chat_id=user_id, text=f"🏆 Tournament '{tournament.name}' has finished!\n\n{user_messages[user_id]}Your new balance is {user.balance:.2f} coins, delta is {result:.2f}.")
     
-    send_group_messages(context, tournament)
+    await send_group_messages(context, tournament)
 
 def get_quotes_for_tournament(tournament: ChallongeTournament, storage: Storage):
     quotes = storage.get_tournament_quotes(tournament.challonge_id)
@@ -66,7 +67,7 @@ def get_quotes_for_tournament(tournament: ChallongeTournament, storage: Storage)
         quote_mapping[winner][loser] = amount
     return quote_mapping
 
-def send_group_messages(context, tournament: ChallongeTournament):
+async def send_group_messages(context, tournament: ChallongeTournament):
     message = f"🏆 Tournament '{tournament.name}' has finished!\n\nQuotes:\n"
     quotes = get_quotes_for_tournament(tournament, context.bot_data['storage'])
     players = context.bot_data['api_client'].get_tournament_players(tournament)
@@ -76,4 +77,4 @@ def send_group_messages(context, tournament: ChallongeTournament):
             quote = agains / amount
             message += f"{quote:.2f} for {players[loser]['display_name']} to beat {players[winner]['display_name']}\n"
 
-    send_to_all_group_chats(context, message)
+    await send_to_all_group_chats(context, message)
