@@ -58,7 +58,8 @@ class ChallongeClient:
                 name=t['name'],
                 subscriptions_closed=t['started_at'] is not None,
                 started=False, # computed only later
-                finished=t['state'] == "ended"
+                finished=t['state'] == "ended",
+                outcome_computed=False, # computed later
             ) for tour in res.json()]
         else:
             print(f"Failed to fetch tournaments: {res.status_code} - {res.text}")

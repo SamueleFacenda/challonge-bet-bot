@@ -2,6 +2,7 @@ from .storage import Storage
 from .api import ChallongeClient
 from .conf import TELEGRAM_BOT_TOKEN
 from .commands import bet, info, rank, select_tournament, handle_prediction, handle_amount, STATE_AMOUNT, STATE_PREDICTING, STATE_TOURNAMENT
+from .outcome_computer import check_finished_tournaments
 
 from telegram import BotCommand
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, ConversationHandler, MessageHandler, filters
@@ -29,7 +30,7 @@ async def bet_not_in_group(update, context):
         f"⚠️ The /bet command is only available in private chats with the bot.\n\n"
         f"Click here to start: {deep_link}"
     )
-    
+
 def main():
     storage = Storage("db.sqlite3")
     api_client = ChallongeClient()
@@ -57,6 +58,11 @@ def main():
     #     interval=datetime.timedelta(days=6, hours=23), # a refres is needed every week
     #     first=updated_token.expires_at - datetime.timedelta(hours=1) # the token was just updated, no negative delay
     # )
+
+    app.job_queue.run_repeating(
+        callback=check_finished_tournaments,
+        interval=60, # check every minute for finished tournaments
+    )
 
     bet_handler = ConversationHandler(
         entry_points=[CommandHandler("bet", bet, filters=filters.ChatType.PRIVATE)],

@@ -58,6 +58,9 @@ def update_tournaments(api: ChallongeClient, storage: Storage):
                 # Store the matches when the tournament subscriptions are closed
                 storage.add_challonge_matches(matches)
 
+        tournament.finished = tournament.finished or (current.finished if current else False) # once a tournament is finished, it stays finished
+        tournament.outcome_computed = tournament.outcome_computed or (current.outcome_computed if current else False) # once the outcome is computed, it stays computed
+
         if not current:
             storage.add_challonge_tournament(tournament)
         elif current != tournament:
@@ -104,7 +107,7 @@ async def ask_match(update, context) -> int:
     n_predictions = len(context.user_data['predictions'])
 
     if not matches:
-        await update.callback_query.edit_message_text("All predictions saved! Now, enter your bet amount:")
+        await update.callback_query.edit_message_text("All predictions saved! Now, enter your bet amount (per match):")
         return STATE_AMOUNT
     
     match: ChallongeMatch = matches[0]
@@ -161,10 +164,10 @@ async def handle_amount(update, context) -> int:
     if not re.match(r'^\d+$', amount):
         await update.message.reply_text("Please enter a valid amount (positive integer).")
         return STATE_AMOUNT
-    amount = int(amount)
+    amount = int(amount) # the amount is per match, so later we multiply by the number of predictions
 
-    # TODO take into account placed bets too
-    if amount > user.balance:
+    # TODO take into account already placed bets too
+    if amount * len(context.user_data['predictions']) > user.balance:
         await update.message.reply_text(f"You don't have enough balance to place this bet. Your current balance is {user.balance}. Please enter a valid amount.")
         return STATE_AMOUNT
     

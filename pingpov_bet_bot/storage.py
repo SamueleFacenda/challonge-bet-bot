@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS challonge_tournaments (
     name TEXT NOT NULL,
     subscriptions_closed BOOLEAN NOT NULL,
     started BOOLEAN NOT NULL,
-    finished BOOLEAN NOT NULL
+    finished BOOLEAN NOT NULL,
+    outcome_computed BOOLEAN NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS challonge_matches (
@@ -98,6 +99,7 @@ class ChallongeTournament:
     subscriptions_closed: bool
     started: bool
     finished: bool
+    outcome_computed: bool
 
 @dataclass
 class ChallongeMatch:
@@ -180,6 +182,20 @@ class Storage:
             ) for row in results
         ]
     
+    def get_tournament_quotes(self, challonge_tournament_id: int) -> list[tuple[int, int, int]]:
+        """
+        Returns the number of bets on a single match outcome (a wins over b) for the given tournament
+        """
+        cursor = self.conn.cursor()
+        cursor.execute(
+            """
+            SELECT challonge_winner_id, challonge_loser_id, COUNT(*) as bet_count FROM match_bets WHERE challonge_tournament_id = ?
+            GROUP BY challonge_winner_id, challonge_loser_id
+            """, (challonge_tournament_id,)
+        )
+        results = cursor.fetchall()
+        return [(row[0], row[1], row[2]) for row in results]
+    
     def get_match_bets_for_tournament(self, challonge_tournament_id: int) -> list[MatchBet]:
         cursor = self.conn.cursor()
         cursor.execute(
@@ -224,7 +240,8 @@ class Storage:
                 name=result[1],
                 subscriptions_closed=bool(result[2]),
                 started=bool(result[3]),
-                finished=bool(result[4])
+                finished=bool(result[4]),
+                outcome_computed=bool(result[5])
             )
         return None
     
@@ -261,23 +278,41 @@ class Storage:
                 name=row[1],
                 subscriptions_closed=bool(row[2]),
                 started=bool(row[3]),
-                finished=bool(row[4])
+                finished=bool(row[4]),
+                outcome_computed=bool(row[5])
+            ) for row in results
+        ]
+    
+    def get_tournaments_not_finalized(self) -> list[ChallongeTournament]:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT * FROM challonge_tournaments WHERE started = 1 AND outcome_computed = 0"
+        )
+        results = cursor.fetchall()
+        return [
+            ChallongeTournament(
+                challonge_id=row[0],
+                name=row[1],
+                subscriptions_closed=bool(row[2]),
+                started=bool(row[3]),
+                finished=bool(row[4]),
+                outcome_computed=bool(row[5])
             ) for row in results
         ]
     
     def add_challonge_tournament(self, tournament: ChallongeTournament):
         cursor = self.conn.cursor()
         cursor.execute(
-            "INSERT OR REPLACE INTO challonge_tournaments (challonge_id, name, subscriptions_closed, started, finished) VALUES (?, ?, ?, ?, ?)",
-            (tournament.challonge_id, tournament.name, int(tournament.subscriptions_closed), int(tournament.started), int(tournament.finished))
+            "INSERT OR REPLACE INTO challonge_tournaments (challonge_id, name, subscriptions_closed, started, finished, outcome_computed) VALUES (?, ?, ?, ?, ?, ?)",
+            (tournament.challonge_id, tournament.name, int(tournament.subscriptions_closed), int(tournament.started), int(tournament.finished), int(tournament.outcome_computed))
         )
         self.conn.commit()
 
     def update_challonge_tournament(self, tournament: ChallongeTournament):
         cursor = self.conn.cursor()
         cursor.execute(
-            "UPDATE challonge_tournaments SET name = ?, subscriptions_closed = ?, started = ?, finished = ? WHERE challonge_id = ?",
-            (tournament.name, int(tournament.subscriptions_closed), int(tournament.started), int(tournament.finished), tournament.challonge_id)
+            "UPDATE challonge_tournaments SET name = ?, subscriptions_closed = ?, started = ?, finished = ?, outcome_computed = ? WHERE challonge_id = ?",
+            (tournament.name, int(tournament.subscriptions_closed), int(tournament.started), int(tournament.finished), int(tournament.outcome_computed), tournament.challonge_id)
         )
         self.conn.commit()
 
