@@ -25,6 +25,11 @@ def handle_tournament_finished(tournament: ChallongeTournament, api: ChallongeCl
     for bet in match_bets:
         match = results[bet.challonge_match_id]
         assert(match.winner_id is not None), f"Match {match.challonge_id} in tournament {tournament.name} does not have a winner yet, but the tournament is marked as finished."
+        
+        players = (match.player1_id, match.player2_id)
+        if bet.challonge_winner_id not in players or bet.challonge_loser_id not in players:
+            continue # happens when a player did the wrong prediction on a previous match
+        
         if bet.challonge_winner_id == match.winner_id:
             same_bet = quotes[bet.challonge_winner_id][bet.challonge_loser_id]
             against_bet = quotes[bet.challonge_loser_id][bet.challonge_winner_id]

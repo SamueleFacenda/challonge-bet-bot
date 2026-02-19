@@ -25,6 +25,24 @@ def ensure_user_registered(func):
             return await func(update, context)
         return wrapper
 
+@ensure_user_registered
+async def start(update, context):
+    # Check if this is a deep link (e.g., from bet_not_in_group)
+    if context.args and context.args[0] == 'bet':
+        return await bet(update, context)
+    
+    welcome_message = (
+        f"👋 Welcome {update.effective_user.first_name}!\n\n"
+        f"I'm a betting bot for PingPov tournaments.\n\n"
+        f"Available commands:\n"
+        f"/bet - Place a bet on a tournament\n"
+        f"/info - Check your balance and stats\n"
+        f"/rank - View user rankings\n\n"
+        f"Get started by placing your first bet!"
+    )
+    
+    await update.message.reply_text(welcome_message)
+
 
 @ensure_user_registered
 async def info(update, context):
