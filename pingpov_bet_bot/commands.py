@@ -2,7 +2,7 @@ import re
 from .storage import Bet, MatchBet, User, Storage, ChallongeTournament, ChallongeMatch
 from .api import ChallongeClient
 
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
+from telegram import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Update
 from telegram.ext import ConversationHandler
 
 START_BALANCE = 1000 # TODO make this configurable
@@ -84,13 +84,13 @@ async def bet(update, context):
 async def select_tournament(update: Update, context):
     storage: Storage = context.bot_data['storage']
 
-    query = update.callback_query
+    query: CallbackQuery = update.callback_query # type: ignore type is ensured by the handler
     await query.answer()
-    tournament: ChallongeTournament = storage.get_challonge_tournament(int(query.data))
+    tournament: ChallongeTournament = storage.get_challonge_tournament(int(query.data)) # type: ignore tournament exists because it's in the keyboard
 
     bets = storage.get_bets_for_tournament(tournament.challonge_id)
     if any(bet.user_id == query.from_user.id for bet in bets):
-        await query.message.reply_text("Sorry, you have already placed a bet on this tournament.")
+        await query.message.reply_text("Sorry, you have already placed a bet on this tournament.") # type: ignore
         return ConversationHandler.END
 
     context.user_data['selected_tournament'] = tournament
@@ -103,24 +103,24 @@ async def ask_match(update, context) -> int:
     matches: list[ChallongeMatch] = context.user_data['to_predict']
     n_predictions = len(context.user_data['predictions'])
 
-    if len(matches):
-        match: ChallongeMatch = matches[0]
-
-        players = api.get_tournament_players(context.user_data['selected_tournament'])
-        player_one_name = players[match.player1_id]['display_name'] if match.player1_id in players else str(match.player1_id)
-        player_two_name = players[match.player2_id]['display_name'] if match.player2_id in players else str(match.player2_id)
-
-        keyboard = [
-            [InlineKeyboardButton(player_one_name, callback_data=str(match.player1_id)),
-             InlineKeyboardButton(player_two_name, callback_data=str(match.player2_id))]
-        ]
-        text = f"Match {n_predictions + 1}/{len(matches) + n_predictions}: who will win?"
-        
-        await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
-        return STATE_PREDICTING
-    else:
+    if not matches:
         await update.callback_query.edit_message_text("All predictions saved! Now, enter your bet amount:")
         return STATE_AMOUNT
+    
+    match: ChallongeMatch = matches[0]
+
+    players = api.get_tournament_players(context.user_data['selected_tournament'])
+    player_one_name = players[match.player1_id]['display_name'] if match.player1_id in players else str(match.player1_id) # type: ignore id is propagated here
+    player_two_name = players[match.player2_id]['display_name'] if match.player2_id in players else str(match.player2_id) # type: ignore
+
+    keyboard = [
+        [InlineKeyboardButton(player_one_name, callback_data=str(match.player1_id)),
+            InlineKeyboardButton(player_two_name, callback_data=str(match.player2_id))]
+    ]
+    text = f"Match {n_predictions + 1}/{len(matches) + n_predictions}: who will win?"
+    
+    await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    return STATE_PREDICTING
     
 async def handle_prediction(update, context) -> int:
     query = update.callback_query
@@ -157,7 +157,7 @@ async def handle_amount(update, context) -> int:
 
     amount = update.message.text
 
-    user: User = storage.get_user(update.message.from_user.id)
+    user: User = storage.get_user(update.message.from_user.id) # type: ignore there is ensure user before
     if not re.match(r'^\d+$', amount):
         await update.message.reply_text("Please enter a valid amount (positive integer).")
         return STATE_AMOUNT
@@ -168,9 +168,10 @@ async def handle_amount(update, context) -> int:
         await update.message.reply_text(f"You don't have enough balance to place this bet. Your current balance is {user.balance}. Please enter a valid amount.")
         return STATE_AMOUNT
     
+    # check if the tournament started in the meantime
     update_tournaments(api, storage)
     updated = storage.get_challonge_tournament(context.user_data['selected_tournament'].challonge_id)
-    if updated and updated.started: # check if the tournament started in the meantime
+    if updated and updated.started:
         await update.message.reply_text("Sorry, the tournament is no longer open for betting.")
         return ConversationHandler.END
     
