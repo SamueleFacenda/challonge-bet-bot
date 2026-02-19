@@ -62,6 +62,11 @@ CREATE TABLE IF NOT EXISTS oauth_tokens (
     expires_at DATETIME NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS chats (
+    chat_id INTEGER PRIMARY KEY,
+    is_group BOOLEAN NOT NULL
+);
 """
 
 
@@ -346,3 +351,35 @@ class Storage:
             (token.user, token.access_token, token.refresh_token, token.expires_at)
         )
         self.conn.commit()
+
+    def add_chat(self, chat_id: int, is_group: bool):
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "INSERT OR IGNORE INTO chats (chat_id, is_group) VALUES (?, ?)",
+            (chat_id, int(is_group))
+        )
+        self.conn.commit()
+
+    def remove_chat(self, chat_id: int):
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "DELETE FROM chats WHERE chat_id = ?",
+            (chat_id,)
+        )
+        self.conn.commit()
+
+    def get_group_chats(self) -> list[int]:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT chat_id FROM chats WHERE is_group = 1"
+        )
+        results = cursor.fetchall()
+        return [row[0] for row in results]
+    
+    def get_private_chats(self) -> list[int]:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT chat_id FROM chats WHERE is_group = 0"
+        )
+        results = cursor.fetchall()
+        return [row[0] for row in results]

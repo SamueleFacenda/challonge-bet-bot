@@ -3,9 +3,10 @@ from .api import ChallongeClient
 from .conf import TELEGRAM_BOT_TOKEN
 from .commands import start, help, bet, info, rank, select_tournament, handle_prediction, handle_amount, STATE_AMOUNT, STATE_PREDICTING, STATE_TOURNAMENT
 from .outcome_computer import check_finished_tournaments
+from .broadcast import track_group_chats
 
 from telegram import BotCommand
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, ConversationHandler, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, ConversationHandler, MessageHandler, filters, ChatMemberHandler
 
 async def update_token_job(context: ContextTypes.DEFAULT_TYPE):
     storage: Storage = context.bot_data['storage']
@@ -41,14 +42,14 @@ def main():
     updated_token = api_client.authenticate(access_token)
 
     # storage.save_access_token(updated_token)
-    print("Access token updated.")
+    # print("Access token updated.")
 
-    print("Logged in as:", api_client.get_user())
-    print("Available communities:", api_client.get_communities())
-    print("Available tournaments:", api_client.get_tournaments())
+    # print("Logged in as:", api_client.get_user())
+    # print("Available communities:", api_client.get_communities())
+    # print("Available tournaments:", api_client.get_tournaments())
 
-    t = api_client.get_tournaments()[0]
-    print(f"Matches for tournament {t.name}:", api_client.get_tournament_matches(t))
+    # t = api_client.get_tournaments()[0]
+    # print(f"Matches for tournament {t.name}:", api_client.get_tournament_matches(t))
 
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).post_init(post_init).build()
 
@@ -73,7 +74,8 @@ def main():
             STATE_PREDICTING: [CallbackQueryHandler(handle_prediction)],
             STATE_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_amount)],
         },
-        fallbacks=[]
+        fallbacks=[],
+        per_message=False
     )
     app.add_handler(CommandHandler("bet", bet_not_in_group, filters=~filters.ChatType.PRIVATE))
 
@@ -82,5 +84,6 @@ def main():
     app.add_handler(CommandHandler("help", help))
     app.add_handler(CommandHandler("info", info))
     app.add_handler(CommandHandler("rank", rank))
+    app.add_handler(ChatMemberHandler(track_group_chats, ChatMemberHandler.MY_CHAT_MEMBER))
 
     app.run_polling()

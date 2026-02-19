@@ -1,6 +1,7 @@
 import re
 from .storage import Bet, MatchBet, User, Storage, ChallongeTournament, ChallongeMatch
 from .api import ChallongeClient
+from .broadcast import track_private_chats
 
 from telegram import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Update
 from telegram.ext import ConversationHandler
@@ -25,6 +26,14 @@ def ensure_user_registered(func):
             return await func(update, context)
         return wrapper
 
+def command(func):
+    """
+    Decorator to apply common checks and setup for all command handlers.
+    """
+    func = ensure_user_registered(func)
+    func = track_private_chats(func)
+    return func
+
 HELP_TEXT = (
     "/start - Start interacting with the bot\n"
     "/bet - Place a bet on an upcoming tournament\n"
@@ -32,6 +41,7 @@ HELP_TEXT = (
     "/rank - View the current user rankings\n\n"
 )
 
+@command
 async def start(update, context):
     # Check if this is a deep link (e.g., from bet_not_in_group)
     if context.args and context.args[0] == 'bet':
@@ -46,6 +56,7 @@ async def start(update, context):
     
     await update.message.reply_text(welcome_message)
 
+@command
 async def help(update, context):
     help_message = (
         f"Here are the available commands:\n\n"
@@ -55,13 +66,13 @@ async def help(update, context):
     await update.message.reply_text(help_message)
 
 
-@ensure_user_registered
+@command
 async def info(update, context):
     storage = context.bot_data['storage']
     user_balance = storage.get_user(update.message.from_user.id).balance
     await update.message.reply_text(f"Hello {update.message.from_user.first_name}, your current balance is: {user_balance}")
 
-@ensure_user_registered
+@command
 async def rank(update, context):
     storage = context.bot_data['storage']
     top_users = storage.get_ranking()
@@ -95,7 +106,7 @@ def update_tournaments(api: ChallongeClient, storage: Storage):
         elif current != tournament:
             storage.update_challonge_tournament(tournament)
 
-@ensure_user_registered
+@command
 async def bet(update, context):
     storage: Storage = context.bot_data['storage']
     api: ChallongeClient = context.bot_data['api_client']
