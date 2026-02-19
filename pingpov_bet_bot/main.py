@@ -1,7 +1,7 @@
 from .storage import Storage
 from .api import ChallongeClient
 from .conf import TELEGRAM_BOT_TOKEN
-from .commands import start, bet, info, rank, select_tournament, handle_prediction, handle_amount, STATE_AMOUNT, STATE_PREDICTING, STATE_TOURNAMENT
+from .commands import start, help, bet, info, rank, select_tournament, handle_prediction, handle_amount, STATE_AMOUNT, STATE_PREDICTING, STATE_TOURNAMENT
 from .outcome_computer import check_finished_tournaments
 
 from telegram import BotCommand
@@ -18,7 +18,9 @@ async def update_token_job(context: ContextTypes.DEFAULT_TYPE):
 
 async def post_init(application):
     await application.bot.set_my_commands([
+        BotCommand("start", "Start the bot and get a welcome message"),
         BotCommand("bet", "Place a bet on a tournament"),
+        BotCommand("help", "Get a list of available commands and how to use them"),
         BotCommand("info", "Get your current balance and info"),
         BotCommand("rank", "Get the current user rankings"),
     ])
@@ -77,6 +79,7 @@ def main():
 
     app.add_handler(bet_handler)
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help))
     app.add_handler(CommandHandler("info", info))
     app.add_handler(CommandHandler("rank", rank))
 
