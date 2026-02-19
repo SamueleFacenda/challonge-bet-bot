@@ -91,7 +91,7 @@ def update_tournaments(api: ChallongeClient, storage: Storage):
     tournaments = api.get_tournaments()
     for tournament in tournaments:
         current = storage.get_challonge_tournament(tournament.challonge_id)
-        if not current or current.subscriptions_closed:
+        if not current or (current.subscriptions_closed and not current.started):
             matches = api.get_tournament_matches(tournament)
             tournament.started = any(match.started for match in matches)
             if (not current and tournament.subscriptions_closed) or (current and not current.subscriptions_closed and tournament.subscriptions_closed):

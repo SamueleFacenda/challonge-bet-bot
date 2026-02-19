@@ -73,8 +73,8 @@ async def send_group_messages(context, tournament: ChallongeTournament):
     players = context.bot_data['api_client'].get_tournament_players(tournament)
     for winner, losers in quotes.items():
         for loser, amount in losers.items():
-            agains = quotes[loser][winner]
-            quote = agains / amount
-            message += f"{quote:.2f} for {players[loser]['display_name']} to beat {players[winner]['display_name']}\n"
+            against = quotes[loser][winner]
+            quote = against / amount
+            message += f"{quote:.2f} for {players[winner]['display_name']} to beat {players[loser]['display_name']}\n"
 
     await send_to_all_group_chats(context, message)
