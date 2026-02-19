@@ -30,7 +30,6 @@ async def track_group_chats(update, context):
         storage.remove_chat(chat_id)
         print(f"Removed group {chat_id} from database.")
 
-
 def track_private_chats(func):
     async def wrapper(update, context):
         storage: Storage = context.bot_data['storage']

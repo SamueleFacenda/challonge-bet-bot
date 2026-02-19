@@ -74,8 +74,7 @@ def main():
             STATE_PREDICTING: [CallbackQueryHandler(handle_prediction)],
             STATE_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_amount)],
         },
-        fallbacks=[],
-        per_message=False
+        fallbacks=[]
     )
     app.add_handler(CommandHandler("bet", bet_not_in_group, filters=~filters.ChatType.PRIVATE))
 
