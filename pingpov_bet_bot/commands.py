@@ -78,10 +78,10 @@ async def rank(update, context):
     top_users = storage.get_ranking()
     ranking_text = "Top Users:\n"
     for i, user in enumerate(top_users[:10], start=1):
-        ranking_text += f"{i}. {user.username} - Balance: {user.balance}\n"
+        ranking_text += f"{i}. {user.username} - balance: {user.balance}\n"
     user_position = next((i for i, user in enumerate(top_users, start=1) if user.telegram_id == update.message.from_user.id), None)
     if user_position and user_position > 10:
-        ranking_text += f"\nYour position: {user_position}. {update.message.from_user.username} - Balance: {storage.get_user(update.message.from_user.id).balance}\n"
+        ranking_text += f"\nYour position: {user_position}. {update.message.from_user.username} - balance: {storage.get_user(update.message.from_user.id).balance}\n"
 
     await update.message.reply_text(ranking_text)
 
