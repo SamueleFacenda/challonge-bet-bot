@@ -1,5 +1,4 @@
 from .storage import Storage
-from pingpov_bet_bot import storage
 
 
 async def send_to_all_private_chats(context, message: str):

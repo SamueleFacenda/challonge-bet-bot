@@ -49,7 +49,7 @@ async def start(update, context):
     
     welcome_message = (
         f"👋 Welcome {update.effective_user.first_name}!\n\n"
-        f"I'm a betting bot for PingPov tournaments.\n\n"
+        f"I'm a betting bot for Challonge tournaments.\n\n"
         f"{HELP_TEXT}"
         f"Get started by placing your first bet!"
     )
@@ -62,6 +62,8 @@ async def help(update, context):
         f"Here are the available commands:\n\n"
         f"{HELP_TEXT}"
         f"Feel free to explore and place your bets on upcoming tournaments!"
+        "\nYou will be able to place a bet when the tournaments is started, bets will close "
+        "when the a tournament match starts, you will get an update on the outcome of your bets when the tournament finishes."
     )
     await update.message.reply_text(help_message)
 

@@ -56,7 +56,7 @@ async def handle_tournament_finished(context, tournament: ChallongeTournament):
         user: User = storage.get_user(user_id) # type: ignore user exists because they placed a bet
         user.balance += result
         storage.update_user(user)
-        await context.bot.send_message(chat_id=user_id, text=f"🏆 Tournament '{tournament.name}' has finished!\n\n{user_messages[user_id]}Your new balance is {user.balance:.2f} coins, delta is {result:.2f}.")
+        await context.bot.send_message(chat_id=user_id, text=f"🏆 Tournament '{tournament.name}' has finished!\n\n{user_messages[user_id]}\nYour new balance is {user.balance:.2f} coins, delta is {result:.2f}.")
     
     await send_group_messages(context, tournament)
 

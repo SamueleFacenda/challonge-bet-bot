@@ -24,9 +24,9 @@
       {
 
         packages = rec {
-          default = pingpov-bet-bot;
-          pingpov-bet-bot = pkgs.python3.pkgs.buildPythonApplication {
-            pname = "pingpov-bet-bot";
+          default = challonge-bet-bot;
+          challonge-bet-bot = pkgs.python3.pkgs.buildPythonApplication {
+            pname = "challonge-bet-bot";
             src = pkgs.lib.cleanSource ./.;
             inherit version;
             pyproject = true;
