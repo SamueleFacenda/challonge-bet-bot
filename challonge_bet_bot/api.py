@@ -1,4 +1,4 @@
-from pingpov_bet_bot.storage import AccessToken, ChallongeMatch, ChallongeTournament
+from .storage import AccessToken, ChallongeMatch, ChallongeTournament
 import requests as req
 from cachetools import TTLCache, cached
 

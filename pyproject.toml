@@ -19,4 +19,4 @@ dependencies = [
 ]
 
 [project.scripts]
-main = "challonge_bet_bot:main"
+challonge-bet-bot = "challonge_bet_bot:main"

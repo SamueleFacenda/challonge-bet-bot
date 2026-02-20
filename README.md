@@ -10,7 +10,8 @@ Bet on challonge tournaments from telegram.
 - Get the tournament quotes on group chats
 
 ## How to run
-Use `nix run`, correctly set your env vars or a `.env` file with the following vars:
+Use `nix run` from the repo root or `nix run github:SamueleFacenda/challonge-bet-bot` without cloning the repo, 
+correctly set your env vars or a `.env` file with the following vars:
 - `DB_PATH`: path used for the sqlite db
 - `TELEGRAM_BOT_TOKEN`: use the both father to create a new bot
 - `CHALLONGE_APIV1_TOKEN`: v1 api token for challonge

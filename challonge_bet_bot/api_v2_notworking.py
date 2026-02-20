@@ -1,8 +1,5 @@
 from time import sleep
-from wsgiref import headers
 import requests as req
-from functools import cache
-import json
 from datetime import datetime, timedelta
 import urllib.parse
 

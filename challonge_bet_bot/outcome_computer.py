@@ -1,7 +1,7 @@
 from .api import ChallongeClient
 from .storage import ChallongeTournament, Storage
 from .commands import update_tournaments
-from .broadcast import send_to_all_group_chats, send_to_all_private_chats
+from .broadcast import send_to_all_group_chats
 
 from collections import defaultdict
 
