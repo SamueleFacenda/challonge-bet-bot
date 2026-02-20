@@ -1,6 +1,8 @@
 # Challonge telegram bets bot
 
 Bet on challonge tournaments from telegram.
+<img width="616" height="254" alt="20260220_12h29m07s_grim" src="https://github.com/user-attachments/assets/a4c5f91f-274b-44a8-8c80-c6bdf6187e56" />
+<img width="1420" height="998" alt="20260220_12h29m22s_grim" src="https://github.com/user-attachments/assets/5ef41391-801a-4265-8278-b420527b7a34" />
 
 ### Features:
 - Place bets in private chats
