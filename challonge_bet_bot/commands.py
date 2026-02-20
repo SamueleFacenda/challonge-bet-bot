@@ -1,6 +1,5 @@
 import re
 from dataclasses import dataclass
-from functools import wraps
 from .storage import Bet, MatchBet, User, Storage, ChallongeTournament, ChallongeMatch
 from .api import ChallongeClient
 from .broadcast import track_private_chats
@@ -11,22 +10,22 @@ from telegram.ext import ConversationHandler, filters
 START_BALANCE = 1000 # TODO make this configurable
 
 def ensure_user_registered(func):
-        """
-        Decorator to ensure the user is registered in the database before executing the command.
-        """
-        async def wrapper(update, context):
-            storage = context.bot_data['storage']
-            user_id = update.message.from_user.id
-            if not storage.get_user(user_id):
-                print(f"Registering new user with Telegram ID: {user_id}")
-                user = User(
-                    telegram_id=user_id,
-                    username=update.message.from_user.username or "",
-                    balance=START_BALANCE  # Starting balance for new users
-                )
-                storage.add_user(user)
-            return await func(update, context)
-        return wrapper
+    """
+    Decorator to ensure the user is registered in the database before executing the command.
+    """
+    async def wrapper(update, context):
+        storage = context.bot_data['storage']
+        user_id = update.message.from_user.id
+        if not storage.get_user(user_id):
+            print(f"Registering new user with Telegram ID: {user_id}")
+            user = User(
+                telegram_id=user_id,
+                username=update.message.from_user.username or "",
+                balance=START_BALANCE  # Starting balance for new users
+            )
+            storage.add_user(user)
+        return await func(update, context)
+    return wrapper
 
 @dataclass
 class Command:
@@ -40,7 +39,7 @@ COMMANDS: list[Command] = []
 def command(desc="", filter=None, name=None, register=True):
     """
     Decorator to apply common checks and setup for all command handlers.
-    - Registers the command in the COMMANDS list for help text generation.
+    - Registers the command in the COMMANDS list for help text generation and command handling.
     - Ensures the user is registered in the database before executing the command.
     - Tracks private chats for broadcasting messages later.
     """
