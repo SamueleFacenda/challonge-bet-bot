@@ -1,10 +1,12 @@
 import re
+from dataclasses import dataclass
+from functools import wraps
 from .storage import Bet, MatchBet, User, Storage, ChallongeTournament, ChallongeMatch
 from .api import ChallongeClient
 from .broadcast import track_private_chats
 
 from telegram import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Update
-from telegram.ext import ConversationHandler
+from telegram.ext import ConversationHandler, filters
 
 START_BALANCE = 1000 # TODO make this configurable
 
@@ -26,55 +28,75 @@ def ensure_user_registered(func):
             return await func(update, context)
         return wrapper
 
-def command(func):
+@dataclass
+class Command:
+    name: str
+    handler: object
+    description: str
+    filter: object
+
+COMMANDS: list[Command] = []
+
+def command(desc="", filter=None, name=None, register=True):
     """
     Decorator to apply common checks and setup for all command handlers.
+    - Registers the command in the COMMANDS list for help text generation.
+    - Ensures the user is registered in the database before executing the command.
+    - Tracks private chats for broadcasting messages later.
     """
-    func = ensure_user_registered(func)
-    func = track_private_chats(func)
-    return func
+    def decorator(func):
+        cmd_name = name if name is not None else func.__name__
 
-HELP_TEXT = (
-    "/start - Start interacting with the bot\n"
-    "/bet - Place a bet on an upcoming tournament\n"
-    "/info - Check your current balance and stats\n"
-    "/rank - View the current user rankings\n\n"
-)
+        if register:
+            COMMANDS.append(Command(name=cmd_name, handler=func, description=desc, filter=filter))
 
-@command
+        func = ensure_user_registered(func)
+        func = track_private_chats(func)
+        return func
+    return decorator
+
+@command(desc="Start the bot and get a welcome message")
 async def start(update, context):
     # Check if this is a deep link (e.g., from bet_not_in_group)
     if context.args and context.args[0] == 'bet':
         return await bet(update, context)
     
+    help_text = [f"/{cmd.name} - {cmd.description}\n" for cmd in COMMANDS]
+    
     welcome_message = (
         f"👋 Welcome {update.effective_user.first_name}!\n\n"
         f"I'm a betting bot for Challonge tournaments.\n\n"
-        f"{HELP_TEXT}"
+        f"{''.join(help_text)}\n"
         f"Get started by placing your first bet!"
     )
     
     await update.message.reply_text(welcome_message)
 
-@command
+@command(desc="Get a list of available commands and how to use them")
 async def help(update, context):
+    commands_help = [f"/{cmd.name} - {cmd.description}\n" for cmd in COMMANDS]
     help_message = (
         f"Here are the available commands:\n\n"
-        f"{HELP_TEXT}"
-        f"Feel free to explore and place your bets on upcoming tournaments!"
-        "\nYou will be able to place a bet when the tournaments is started, bets will close "
-        "when the a tournament match starts, you will get an update on the outcome of your bets when the tournament finishes."
+        f"{''.join(commands_help)}\n"
+        "⏱️ You will be able to place a bet when the tournaments is started, bets will close "
+        "when the first tournament match starts, you will get an update on the outcome of your bets when the tournament finishes.\n\n"
+        "💰 You set an amount of coins to bet on each match, if you predict the winner correctly, you win coins proportional "
+        "to the odds of the match, if you predict wrong, you lose the coins you bet.\n\n"
+        "📊 The quotes are computed based on the match bets from all the players, you earn nothing"
+        " if everyone bets the same as you, you earn more if you are the only one betting on a player.\n\n"
+        "Good luck and have fun! 🍀\n"
+        "(All che balances are purely virtual and for fun, no real money is involved. We do not encorage gambling, please bet responsibly and for fun only!)"
     )
     await update.message.reply_text(help_message)
 
 
-@command
+@command(desc="Get your current balance and info")
 async def info(update, context):
     storage = context.bot_data['storage']
     user_balance = storage.get_user(update.message.from_user.id).balance
     await update.message.reply_text(f"Hello {update.message.from_user.first_name}, your current balance is: {user_balance}")
 
-@command
+@command(desc="Get the current ranking of users")
 async def rank(update, context):
     storage = context.bot_data['storage']
     top_users = storage.get_ranking()
@@ -108,7 +130,7 @@ def update_tournaments(api: ChallongeClient, storage: Storage):
         elif current != tournament:
             storage.update_challonge_tournament(tournament)
 
-@command
+@command(name="bet", desc="Place a bet on a tournament", filter=~filters.ChatType.PRIVATE)
 async def bet_not_in_group(update, context):
     bot_username = context.bot.username
     deep_link = f"https://t.me/{bot_username}?start=bet"
@@ -117,7 +139,7 @@ async def bet_not_in_group(update, context):
         f"Click here to start: {deep_link}"
     )
 
-@command
+@command(register=False) # registered manyally with a conversation handler
 async def bet(update, context):
     storage: Storage = context.bot_data['storage']
     api: ChallongeClient = context.bot_data['api_client']

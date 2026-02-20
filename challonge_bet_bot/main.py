@@ -1,21 +1,13 @@
 from .storage import Storage
 from .api import ChallongeClient
 from .conf import TELEGRAM_BOT_TOKEN
-from .commands import start, help, bet_not_in_group, bet, info, rank, select_tournament, handle_prediction, handle_amount, STATE_AMOUNT, STATE_PREDICTING, STATE_TOURNAMENT
+from .commands import COMMANDS, bet, select_tournament, handle_prediction, handle_amount, STATE_AMOUNT, STATE_PREDICTING, STATE_TOURNAMENT
 from .outcome_computer import check_finished_tournaments
 from .broadcast import track_group_chats
 
 from telegram import BotCommand
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, ConversationHandler, MessageHandler, filters, ChatMemberHandler
 
-COMMANDS = [
-    # command, handler, description, filter
-    ("start", start, "Start the bot and get a welcome message", None),
-    ("bet", bet_not_in_group, "Place a bet on a tournament", ~filters.ChatType.PRIVATE),
-    ("help", help, "Get a list of available commands and how to use them", None),
-    ("info", info, "Get your current balance and info", None),
-    ("rank", rank, "Get the current user rankings", None),
-]
 
 async def update_token_job(context: ContextTypes.DEFAULT_TYPE):
     storage: Storage = context.bot_data['storage']
@@ -27,7 +19,7 @@ async def update_token_job(context: ContextTypes.DEFAULT_TYPE):
     print("Access token updated in job.")
 
 async def post_init(application):
-    commands = [BotCommand(command, description) for command, _, description, _ in COMMANDS]
+    commands = [BotCommand(cmd.name, cmd.description) for cmd in COMMANDS]
     await application.bot.set_my_commands(commands)
 
 def main():
@@ -71,7 +63,7 @@ def main():
     )
 
     app.add_handler(bet_handler)
-    for command, handler, _, filter in COMMANDS:
-        app.add_handler(CommandHandler(command, handler, filters=filter))
+    for cmd in COMMANDS:
+        app.add_handler(CommandHandler(cmd.name, cmd.handler, filters=cmd.filter))
 
     app.run_polling()
