@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from .storage import Bet, MatchBet, User, Storage, ChallongeTournament, ChallongeMatch
+from .storage import Bet, MatchBet, TournamentState, User, Storage, ChallongeTournament, ChallongeMatch
 from .api import ChallongeClient
 from .broadcast import track_private_chats
 
@@ -112,22 +112,24 @@ STATE_TOURNAMENT, STATE_PREDICTING, STATE_AMOUNT = range(3)
 
 def update_tournaments(api: ChallongeClient, storage: Storage):
     tournaments = api.get_tournaments()
-    for tournament in tournaments:
-        current = storage.get_challonge_tournament(tournament.challonge_id)
-        if not current or (current.subscriptions_closed and not current.started):
-            matches = api.get_tournament_matches(tournament)
-            tournament.started = any(match.started for match in matches)
-            if (not current and tournament.subscriptions_closed) or (current and not current.subscriptions_closed and tournament.subscriptions_closed):
-                # Store the matches when the tournament subscriptions are closed
+    for updated in tournaments:
+        stored = storage.get_challonge_tournament(updated.challonge_id)
+
+        if updated.state == TournamentState.LOCKED:
+            # When locked check if states changes to running
+            matches = api.get_tournament_matches(updated)
+            if any(match.started for match in matches):
+                updated.state = TournamentState.RUNNING
+
+            if not stored or stored.state < TournamentState.LOCKED:
+                # Transition check, enters here only one time per tournament
+                # When gets locked store the matches, only here and one time
                 storage.add_challonge_matches(matches)
 
-        tournament.finished = tournament.finished or (current.finished if current else False) # once a tournament is finished, it stays finished
-        tournament.outcome_computed = tournament.outcome_computed or (current.outcome_computed if current else False) # once the outcome is computed, it stays computed
-
-        if not current:
-            storage.add_challonge_tournament(tournament)
-        elif current != tournament:
-            storage.update_challonge_tournament(tournament)
+        if not stored:
+            storage.add_challonge_tournament(updated)
+        elif updated.state > stored.state: # only update if the state goes forward
+            storage.update_challonge_tournament(updated)
 
 @command(name="bet", desc="Place a bet on a tournament", filter=~filters.ChatType.PRIVATE)
 async def bet_not_in_group(update, context):
@@ -144,7 +146,7 @@ async def bet(update, context):
     api: ChallongeClient = context.bot_data['api_client']
 
     update_tournaments(api, storage)
-    tournaments = storage.get_bettable_tournaments()
+    tournaments = storage.get_tournaments_by_state(TournamentState.LOCKED)
     if not tournaments:
         await update.message.reply_text("Sorry, there are currently no tournaments open for betting.")
         return ConversationHandler.END
@@ -179,7 +181,7 @@ async def ask_match(update, context) -> int:
     n_predictions = len(context.user_data['predictions'])
 
     if not matches:
-        await update.callback_query.edit_message_text("All predictions saved! Now, enter your bet amount (per match):")
+        await update.callback_query.edit_message_text("Last step before saving! Now, enter your bet amount (per match):")
         return STATE_AMOUNT
     
     match: ChallongeMatch = matches[0]
@@ -246,7 +248,7 @@ async def handle_amount(update, context) -> int:
     # check if the tournament started in the meantime
     update_tournaments(api, storage)
     updated = storage.get_challonge_tournament(context.user_data['selected_tournament'].challonge_id)
-    if updated and updated.started:
+    if updated and updated.state > TournamentState.LOCKED:
         await update.message.reply_text("Sorry, the tournament is no longer open for betting.")
         return ConversationHandler.END
     

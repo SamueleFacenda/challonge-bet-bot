@@ -1,5 +1,5 @@
 from .api import ChallongeClient
-from .storage import ChallongeTournament, Storage
+from .storage import ChallongeTournament, Storage, TournamentState
 from .commands import update_tournaments
 from .broadcast import send_to_all_group_chats
 
@@ -9,13 +9,12 @@ async def check_finished_tournaments(context):
     storage: Storage = context.bot_data['storage']
     api: ChallongeClient = context.bot_data['api_client']
     update_tournaments(api, storage) # update tournaments to get the latest status
-    for tour in storage.get_tournaments_not_finalized():
-        if tour.finished and not tour.outcome_computed:
-            print(f"Tournament {tour.name} is finished but outcome not computed, computing now...")
-            await handle_tournament_finished(context, tour)
+    for tour in storage.get_tournaments_by_state(TournamentState.FINISHED):
+        print(f"Tournament {tour.name} is finished but outcome not computed, computing now...")
+        await handle_tournament_finished(context, tour)
 
-            tour.outcome_computed = True
-            storage.update_challonge_tournament(tour)
+        tour.state = TournamentState.FINALIZED
+        storage.update_challonge_tournament(tour)
 
 async def handle_tournament_finished(context, tournament: ChallongeTournament):
     storage: Storage = context.bot_data['storage']

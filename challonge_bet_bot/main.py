@@ -26,7 +26,8 @@ def main():
     storage = Storage("db.sqlite3")
     api_client = ChallongeClient()
 
-    storage.add_chat(-5158183686, True) # TODO remove this, just for testing
+    # -5158183686
+    storage.add_chat(-1003742761481, True) # TODO remove this, just for testing
 
     access_token = storage.get_access_token()
     updated_token = api_client.authenticate(access_token)

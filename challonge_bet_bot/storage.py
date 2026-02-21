@@ -1,6 +1,8 @@
+from http.client import CREATED
 import sqlite3
 from datetime import datetime
 from dataclasses import dataclass
+from enum import IntEnum
 
 INIT_QUERY = """
 CREATE TABLE IF NOT EXISTS bets (
@@ -26,10 +28,7 @@ ON match_bets(challonge_tournament_id);
 CREATE TABLE IF NOT EXISTS challonge_tournaments (
     challonge_id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
-    subscriptions_closed BOOLEAN NOT NULL,
-    started BOOLEAN NOT NULL,
-    finished BOOLEAN NOT NULL,
-    outcome_computed BOOLEAN NOT NULL DEFAULT 0
+    state INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS challonge_matches (
@@ -97,14 +96,18 @@ class MatchBet:
     challonge_winner_id: int
     challonge_loser_id: int # kept for easier access
 
+class TournamentState(IntEnum):
+    CREATED = 0
+    LOCKED = 1 # subscriptions closed
+    RUNNING = 2
+    FINISHED = 3
+    FINALIZED = 4 # outcome computed
+
 @dataclass(unsafe_hash=True)
 class ChallongeTournament:
     challonge_id: int
     name: str
-    subscriptions_closed: bool
-    started: bool
-    finished: bool
-    outcome_computed: bool
+    state: TournamentState
 
 @dataclass
 class ChallongeMatch:
@@ -244,10 +247,7 @@ class Storage:
             return ChallongeTournament(
                 challonge_id=result[0],
                 name=result[1],
-                subscriptions_closed=bool(result[2]),
-                started=bool(result[3]),
-                finished=bool(result[4]),
-                outcome_computed=bool(result[5])
+                state=TournamentState(result[2])
             )
         return None
     
@@ -272,53 +272,33 @@ class Storage:
             ) for row in results
         ]
     
-    def get_bettable_tournaments(self) -> list[ChallongeTournament]:
+    def get_tournaments_by_state(self, state: TournamentState) -> list[ChallongeTournament]:
         cursor = self.conn.cursor()
         cursor.execute(
-            "SELECT * FROM challonge_tournaments WHERE subscriptions_closed = 1 AND started = 0"
+            "SELECT * FROM challonge_tournaments WHERE state = ?", (state,)
         )
         results = cursor.fetchall()
         return [
             ChallongeTournament(
                 challonge_id=row[0],
                 name=row[1],
-                subscriptions_closed=bool(row[2]),
-                started=bool(row[3]),
-                finished=bool(row[4]),
-                outcome_computed=bool(row[5])
-            ) for row in results
-        ]
-    
-    def get_tournaments_not_finalized(self) -> list[ChallongeTournament]:
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT * FROM challonge_tournaments WHERE started = 1 AND outcome_computed = 0"
-        )
-        results = cursor.fetchall()
-        return [
-            ChallongeTournament(
-                challonge_id=row[0],
-                name=row[1],
-                subscriptions_closed=bool(row[2]),
-                started=bool(row[3]),
-                finished=bool(row[4]),
-                outcome_computed=bool(row[5])
+                state=TournamentState(row[2])
             ) for row in results
         ]
     
     def add_challonge_tournament(self, tournament: ChallongeTournament):
         cursor = self.conn.cursor()
         cursor.execute(
-            "INSERT OR REPLACE INTO challonge_tournaments (challonge_id, name, subscriptions_closed, started, finished, outcome_computed) VALUES (?, ?, ?, ?, ?, ?)",
-            (tournament.challonge_id, tournament.name, int(tournament.subscriptions_closed), int(tournament.started), int(tournament.finished), int(tournament.outcome_computed))
+            "INSERT OR REPLACE INTO challonge_tournaments (challonge_id, name, state) VALUES (?, ?, ?)",
+            (tournament.challonge_id, tournament.name, tournament.state)
         )
         self.conn.commit()
 
     def update_challonge_tournament(self, tournament: ChallongeTournament):
         cursor = self.conn.cursor()
         cursor.execute(
-            "UPDATE challonge_tournaments SET name = ?, subscriptions_closed = ?, started = ?, finished = ?, outcome_computed = ? WHERE challonge_id = ?",
-            (tournament.name, int(tournament.subscriptions_closed), int(tournament.started), int(tournament.finished), int(tournament.outcome_computed), tournament.challonge_id)
+            "UPDATE challonge_tournaments SET name = ?, state = ? WHERE challonge_id = ?",
+            (tournament.name, tournament.state, tournament.challonge_id)
         )
         self.conn.commit()
 

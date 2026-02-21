@@ -1,4 +1,4 @@
-from .storage import AccessToken, ChallongeMatch, ChallongeTournament
+from .storage import AccessToken, ChallongeMatch, ChallongeTournament, TournamentState
 import requests as req
 from cachetools import TTLCache, cached
 
@@ -56,16 +56,14 @@ class ChallongeClient:
             return [ChallongeTournament(
                 challonge_id=(t := tour['tournament'])['id'],
                 name=t['name'],
-                subscriptions_closed=t['started_at'] is not None,
-                started=False, # computed only later
-                finished=t['completed_at'] is not None,
-                outcome_computed=False, # computed later
+                state = TournamentState.FINISHED if t['completed_at'] else
+                    (TournamentState.LOCKED if t['started_at'] else TournamentState.CREATED),
             ) for tour in res.json()]
         else:
             print(f"Failed to fetch tournaments: {res.status_code} - {res.text}")
             return []
 
-    @cached(cache={}) # tournament matches are fixed when the tournament starts (we use the tournament state as key too)
+    @cached(cache=TTLCache(maxsize=CACHE_MAXSIZE, ttl=30)) # ttl cache, maybe needs to be removed
     def get_tournament_matches(self, tournament: ChallongeTournament) -> list[ChallongeMatch]:
         res = self.session.get(f"{API_BASE_URL}/tournaments/{tournament.challonge_id}/matches.json", params={
             "api_key": CHALLONGE_APIV1_TOKEN,
