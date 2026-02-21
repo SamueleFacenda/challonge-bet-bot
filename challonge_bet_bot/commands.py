@@ -84,7 +84,7 @@ async def help(update, context):
         "📊 The quotes are computed based on the match bets from all the players, you earn nothing"
         " if everyone bets the same as you, you earn more if you are the only one betting on a player.\n\n"
         "Good luck and have fun! 🍀\n"
-        "(All che balances are purely virtual and for fun, no real money is involved. We do not encorage gambling, please bet responsibly and for fun only!)"
+        "(All the balances are purely virtual and for fun, no real money is involved. We do not encorage gambling, please bet responsibly and for fun only!)"
     )
     await update.message.reply_text(help_message)
 

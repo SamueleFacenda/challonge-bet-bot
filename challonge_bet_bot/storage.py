@@ -121,7 +121,8 @@ class ChallongeMatch:
 
 class Storage:
     def __init__(self, db_path):
-        self.conn = sqlite3.connect(db_path)
+        self.conn = sqlite3.connect(db_path) # , check_same_thread=False
+        # self.conn.execute("PRAGMA journal_mode=WAL;")
         self.init_db()
 
     def init_db(self):
