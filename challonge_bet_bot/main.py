@@ -40,6 +40,10 @@ def main():
     app.bot_data['storage'] = storage
     app.bot_data['api_client'] = api_client
 
+    if not app.job_queue:
+        print("Job queue is not available, cannot execute")
+        return
+
     # app.job_queue.run_repeating(
     #     callback=update_token_job,
     #     interval=datetime.timedelta(days=6, hours=23), # a refres is needed every week
@@ -65,6 +69,6 @@ def main():
 
     app.add_handler(bet_handler)
     for cmd in COMMANDS:
-        app.add_handler(CommandHandler(cmd.name, cmd.handler, filters=cmd.filter))
+        app.add_handler(CommandHandler(cmd.name, cmd.handler, filters=cmd.filter))# type: ignore callback type is too complex
 
     app.run_polling()
