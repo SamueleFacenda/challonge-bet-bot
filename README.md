@@ -8,6 +8,7 @@ Bet on challonge tournaments from telegram.
 - Place bets in private chats
 - Get your bets outcome in private chats
 - Get the tournament quotes on group chats
+- Communities support
 
 ## How to run
 Use `nix run` from the repo root or `nix run github:SamueleFacenda/challonge-bet-bot` without cloning the repo, 
@@ -17,6 +18,7 @@ correctly set your env vars or a `.env` file with the following vars:
 - `CHALLONGE_APIV1_TOKEN`: v1 api token for challonge
 - `CHALLONGE_CLIENT_ID`: not used right yet
 - `CHALLONGE_CLIENT_SECRET`: not used yet
+- `CHALLONGE_COMMUNITY_SUBDOMAIN`: optional subdomain of the community to use
 
 > [!NOTE]
 > Challonge api V2 is not complete yet, we are using api V1

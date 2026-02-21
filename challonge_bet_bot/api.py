@@ -4,11 +4,10 @@ from cachetools import TTLCache, cached
 
 CACHE_MAXSIZE = 256
 
-from .conf import CHALLONGE_APIV1_TOKEN
+from .conf import CHALLONGE_APIV1_TOKEN, CHALLONGE_COMMUNITY_SUBDOMAIN
 
 # Challonge api integration
 API_BASE_URL = "https://api.challonge.com/v1"
-COMMUNITY_SUBDOMAIN = "0111c8e6013cab705ee34590"
 
 class ChallongeClient:
     """
@@ -48,7 +47,7 @@ class ChallongeClient:
     def get_tournaments(self) -> list[ChallongeTournament]:
         res = self.session.get(f"{API_BASE_URL}/tournaments.json", params={
             "api_key": CHALLONGE_APIV1_TOKEN,
-            # "subdomain": COMMUNITY_SUBDOMAIN TODO use this community
+            **({"subdomain": CHALLONGE_COMMUNITY_SUBDOMAIN} if CHALLONGE_COMMUNITY_SUBDOMAIN else {})
             })
         # print res url
         print(f"Requesting tournaments with URL: {res.url}")
