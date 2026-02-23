@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from .storage import Bet, MatchBet, TournamentState, User, Storage, ChallongeTournament, ChallongeMatch
 from .api import ChallongeClient
 from .broadcast import track_private_chats
+from .outcome_computer import update_and_check_finished_tournaments
 
 from telegram import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Update
 from telegram.ext import ConversationHandler, filters
@@ -110,27 +111,6 @@ async def rank(update, context):
 
 STATE_TOURNAMENT, STATE_PREDICTING, STATE_AMOUNT = range(3)
 
-def update_tournaments(api: ChallongeClient, storage: Storage):
-    tournaments = api.get_tournaments()
-    for updated in tournaments:
-        stored = storage.get_challonge_tournament(updated.challonge_id)
-
-        if updated.state == TournamentState.LOCKED:
-            # When locked check if states changes to running
-            matches = api.get_tournament_matches(updated)
-            if any(match.started for match in matches):
-                updated.state = TournamentState.RUNNING
-
-            if not stored or stored.state < TournamentState.LOCKED:
-                # Transition check, enters here only one time per tournament
-                # When gets locked store the matches, only here and one time
-                storage.add_challonge_matches(matches)
-
-        if not stored:
-            storage.add_challonge_tournament(updated)
-        elif updated.state > stored.state: # only update if the state goes forward
-            storage.update_challonge_tournament(updated)
-
 @command(name="bet", desc="Place a bet on a tournament", filter=~filters.ChatType.PRIVATE)
 async def bet_not_in_group(update, context):
     bot_username = context.bot.username
@@ -143,9 +123,8 @@ async def bet_not_in_group(update, context):
 @command(register=False) # registered manyally with a conversation handler
 async def bet(update, context):
     storage: Storage = context.bot_data['storage']
-    api: ChallongeClient = context.bot_data['api_client']
 
-    update_tournaments(api, storage)
+    await update_and_check_finished_tournaments(context)
     tournaments = storage.get_tournaments_by_state(TournamentState.LOCKED)
     if not tournaments:
         await update.message.reply_text("Sorry, there are currently no tournaments open for betting.")
@@ -230,7 +209,6 @@ def propagate_prediction_to_dependent_matches(matches: list[ChallongeMatch], pre
 
 async def handle_amount(update, context) -> int:
     storage: Storage = context.bot_data['storage']
-    api = context.bot_data['api_client']
 
     amount = update.message.text
 
@@ -246,7 +224,7 @@ async def handle_amount(update, context) -> int:
         return STATE_AMOUNT
     
     # check if the tournament started in the meantime
-    update_tournaments(api, storage)
+    await update_and_check_finished_tournaments(context)
     updated = storage.get_challonge_tournament(context.user_data['selected_tournament'].challonge_id)
     if updated and updated.state > TournamentState.LOCKED:
         await update.message.reply_text("Sorry, the tournament is no longer open for betting.")

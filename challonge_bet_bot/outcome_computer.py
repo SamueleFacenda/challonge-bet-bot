@@ -1,20 +1,56 @@
 from .api import ChallongeClient
 from .storage import ChallongeTournament, Storage, TournamentState
-from .commands import update_tournaments
 from .broadcast import send_to_all_group_chats
 
 from collections import defaultdict
 
-async def check_finished_tournaments(context):
+async def update_and_check_finished_tournaments(context):
     storage: Storage = context.bot_data['storage']
     api: ChallongeClient = context.bot_data['api_client']
     update_tournaments(api, storage) # update tournaments to get the latest status
     for tour in storage.get_tournaments_by_state(TournamentState.FINISHED):
-        print(f"Tournament {tour.name} is finished but outcome not computed, computing now...")
+        print(f"Tournament {tour.name} just finished, computing outcomes...")
         await handle_tournament_finished(context, tour)
 
         tour.state = TournamentState.FINALIZED
         storage.update_challonge_tournament(tour)
+        print(f"Tournament {tour.name} outcomes computed and finalized!")
+
+    if storage.get_tournaments_by_state(TournamentState.RUNNING):
+        enable_scheduled_check_job(context)
+    else:
+        disable_scheduled_check_job(context)
+
+def update_tournaments(api: ChallongeClient, storage: Storage):
+    tournaments = api.get_tournaments()
+    for updated in tournaments:
+        stored = storage.get_challonge_tournament(updated.challonge_id)
+
+        if updated.state == TournamentState.LOCKED:
+            # When locked check if states changes to running
+            matches = api.get_tournament_matches(updated)
+            if any(match.started for match in matches):
+                updated.state = TournamentState.RUNNING
+
+            if not stored or stored.state < TournamentState.LOCKED:
+                # Transition check, enters here only one time per tournament
+                # When gets locked store the matches, only here and one time
+                storage.add_challonge_matches(matches)
+
+        if not stored:
+            storage.add_challonge_tournament(updated)
+        elif updated.state > stored.state: # only update if the state goes forward
+            storage.update_challonge_tournament(updated)
+
+def enable_scheduled_check_job(context):
+    jobs = context.job_queue.get_jobs_by_name(update_and_check_finished_tournaments.__name__)
+    assert len(jobs) == 1, "There should be exactly one scheduled job for checking finished tournaments."
+    jobs[0].enabled = True
+
+def disable_scheduled_check_job(context):
+    jobs = context.job_queue.get_jobs_by_name(update_and_check_finished_tournaments.__name__)
+    assert len(jobs) == 1, "There should be exactly one scheduled job for checking finished tournaments."
+    jobs[0].enabled = False
 
 async def handle_tournament_finished(context, tournament: ChallongeTournament):
     storage: Storage = context.bot_data['storage']
