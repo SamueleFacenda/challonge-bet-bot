@@ -16,7 +16,8 @@ dependencies = [
   "cachetools",
   "python-telegram-bot",
   "python-dotenv",
-  "colorlog"
+  "colorlog",
+  "pydantic_settings"
 ]
 
 [project.scripts]

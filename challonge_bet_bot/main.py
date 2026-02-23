@@ -1,5 +1,4 @@
 import logging
-import argparse
 
 from telegram import BotCommand
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, ConversationHandler, MessageHandler, filters, ChatMemberHandler
@@ -9,11 +8,12 @@ import colorlog
 
 from .storage import Storage
 from .api import ChallongeClient
-from .conf import TELEGRAM_BOT_TOKEN, DB_PATH
+from .conf import CONFIG
 from .commands import COMMANDS, bet, select_tournament, handle_prediction, handle_amount, STATE_AMOUNT, STATE_PREDICTING, STATE_TOURNAMENT
 from .outcome_computer import check_finished_tournaments
 from .broadcast import track_group_chats
 
+logger = logging.getLogger(__name__)
 
 async def update_token_job(context: ContextTypes.DEFAULT_TYPE):
     storage: Storage = context.bot_data['storage']
@@ -29,17 +29,12 @@ async def post_init(application):
     await application.bot.set_my_commands(commands)
 
 def main():
-    args = argparse.ArgumentParser(description="Challonge Bet Bot")
-    args.add_argument("--debug", action="store_true", help="Enable debug logging")
-    parsed_args = args.parse_args()
-
-    log_level = logging.DEBUG if parsed_args.debug else logging.INFO
+    log_level = logging.DEBUG if CONFIG.debug else logging.INFO
     setup_logging(log_level)
 
-    storage = Storage(DB_PATH)
+    storage = Storage(CONFIG.db_path)
     api_client = ChallongeClient()
 
-    # -5158183686
     storage.add_chat(-1003742761481, True) # TODO remove this, just for testing
 
     access_token = storage.get_access_token()
@@ -48,13 +43,13 @@ def main():
     # storage.save_access_token(updated_token)
     # print("Access token updated.")
 
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).post_init(post_init).build()
+    app = ApplicationBuilder().token(CONFIG.telegram_bot_token.get_secret_value()).post_init(post_init).build()
 
     app.bot_data['storage'] = storage
     app.bot_data['api_client'] = api_client
 
     if not app.job_queue:
-        print("Job queue is not available, cannot execute")
+        logger.fatal("Job queue is not available, cannot execute")
         return
 
     # app.job_queue.run_repeating(
@@ -99,13 +94,13 @@ def setup_logging(log_level):
                 'CRITICAL': 'bold_red',
             }
         },
-        datefmt="%Y-%m-%d %H:%M:%S"
+        datefmt="%y-%m-%d %H:%M:%S"
     )
 
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
-
     logging.basicConfig(level=logging.INFO, handlers=[handler])
+
     logging.getLogger("httpx").setLevel(logging.WARNING) # lower ptb logging
     # Set log level for my loggers only
     for name, logger in logging.root.manager.loggerDict.items():

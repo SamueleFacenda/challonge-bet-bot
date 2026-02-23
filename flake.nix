@@ -37,6 +37,7 @@
               python-dotenv
               cachetools
               colorlog
+              pydantic-settings
             ] ++ python-telegram-bot.optional-dependencies.job-queue;
 
             build-system = with pkgs.python3Packages; [

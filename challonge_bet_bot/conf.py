@@ -1,23 +1,21 @@
-import os
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict, CliImplicitFlag
 
-import dotenv
+class Settings(BaseSettings, cli_parse_args=True):
+    telegram_bot_token: SecretStr
+    challonge_client_id: str
+    challonge_client_secret: SecretStr
+    challonge_apiv1_token: SecretStr
+    db_path: str = "db.sqlite3"
+    challonge_community_subdomain: str = ""
+    players_start_balance: int = 1000
+    debug: CliImplicitFlag[bool] = False
 
-dotenv.load_dotenv()  # take environment variables from .env.file
+    # Automatic .env loading
+    model_config = SettingsConfigDict(
+        env_file=".env", 
+        env_prefix='CBB_', 
+        env_ignore_empty=True
+    )
 
-
-DB_PATH = os.getenv("DB_PATH", "db.sqlite3")
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-CHALLONGE_CLIENT_ID = os.getenv("CHALLONGE_CLIENT_ID", "")
-CHALLONGE_CLIENT_SECRET = os.getenv("CHALLONGE_CLIENT_SECRET", "")
-CHALLONGE_APIV1_TOKEN = os.getenv("CHALLONGE_APIV1_TOKEN", "")
-CHALLONGE_COMMUNITY_SUBDOMAIN = os.getenv("CHALLONGE_COMMUNITY_SUBDOMAIN", "")
-PLAYERS_START_BALANCE = int(os.getenv("PLAYERS_START_BALANCE", "1000"))
-
-if not TELEGRAM_BOT_TOKEN:
-    raise ValueError("TELEGRAM_BOT_TOKEN is not set in environment variables.")
-if not CHALLONGE_CLIENT_ID:
-    raise ValueError("CHALLONGE_CLIENT_ID is not set in environment variables.")
-if not CHALLONGE_CLIENT_SECRET:
-    raise ValueError("CHALLONGE_CLIENT_SECRET is not set in environment variables.")
-if not CHALLONGE_APIV1_TOKEN:
-    raise ValueError("CHALLONGE_APIV1_TOKEN is not set in environment variables.")
+CONFIG = Settings()

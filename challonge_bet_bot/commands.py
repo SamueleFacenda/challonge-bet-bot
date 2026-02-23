@@ -9,7 +9,7 @@ from .storage import Bet, MatchBet, TournamentState, User, Storage, ChallongeTou
 from .api import ChallongeClient
 from .broadcast import track_private_chats
 from .outcome_computer import update_tournaments
-from .conf import PLAYERS_START_BALANCE
+from .conf import CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ def ensure_user_registered(func):
             user = User(
                 telegram_id=user_id,
                 username=update.message.from_user.username or "",
-                balance=PLAYERS_START_BALANCE
+                balance=CONFIG.players_start_balance
             )
             storage.add_user(user)
         return await func(update, context)

@@ -1,4 +1,3 @@
-from math import log
 import sqlite3
 from datetime import datetime
 from dataclasses import dataclass

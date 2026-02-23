@@ -4,7 +4,7 @@ from cachetools import TTLCache, cached
 import requests as req
 
 from .storage import AccessToken, ChallongeMatch, ChallongeTournament, TournamentState
-from .conf import CHALLONGE_APIV1_TOKEN, CHALLONGE_COMMUNITY_SUBDOMAIN
+from .conf import CONFIG
 
 CACHE_MAXSIZE = 256
 
@@ -50,8 +50,8 @@ class ChallongeClient:
     @cached(cache=TTLCache(maxsize=CACHE_MAXSIZE, ttl=60)) # takes even more than ttl for challonge to update
     def get_tournaments(self) -> list[ChallongeTournament]:
         res = self.session.get(f"{API_BASE_URL}/tournaments.json", params={
-            "api_key": CHALLONGE_APIV1_TOKEN,
-            **({"subdomain": CHALLONGE_COMMUNITY_SUBDOMAIN} if CHALLONGE_COMMUNITY_SUBDOMAIN else {})
+            "api_key": CONFIG.challonge_apiv1_token.get_secret_value(),
+            **({"subdomain": CONFIG.challonge_community_subdomain} if CONFIG.challonge_community_subdomain else {})
             })
         # print res url
         logger.debug(f"Requesting tournaments with URL: {res.url}")
@@ -69,7 +69,7 @@ class ChallongeClient:
     @cached(cache=TTLCache(maxsize=CACHE_MAXSIZE, ttl=60)) # ttl cache, maybe needs to be removed
     def get_tournament_matches(self, tournament: ChallongeTournament) -> list[ChallongeMatch]:
         res = self.session.get(f"{API_BASE_URL}/tournaments/{tournament.challonge_id}/matches.json", params={
-            "api_key": CHALLONGE_APIV1_TOKEN,
+            "api_key": CONFIG.challonge_apiv1_token.get_secret_value(),
         })
         logger.debug(f"Requesting matches for tournament {tournament.name} with URL: {res.url}")
         if res.status_code == 200:
@@ -92,7 +92,7 @@ class ChallongeClient:
     @cached(cache={}) # no ttl, use tournament state as key too
     def get_tournament_players(self, tournament: ChallongeTournament) -> dict[int, dict[str, str]]:
         res = self.session.get(f"{API_BASE_URL}/tournaments/{tournament.challonge_id}/participants.json", params={
-            "api_key": CHALLONGE_APIV1_TOKEN,
+            "api_key": CONFIG.challonge_apiv1_token.get_secret_value(),
         })
         logger.debug(f"Requesting players for tournament {tournament.name} with URL: {res.url}")
         if res.status_code == 200:
