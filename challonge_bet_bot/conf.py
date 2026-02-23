@@ -1,5 +1,7 @@
-import dotenv
 import os
+
+import dotenv
+
 dotenv.load_dotenv()  # take environment variables from .env.file
 
 

@@ -29,12 +29,14 @@ def main():
     args = argparse.ArgumentParser(description="Challonge Bet Bot")
     args.add_argument("--debug", action="store_true", help="Enable debug logging")
     parsed_args = args.parse_args()
-    logging_level = logging.DEBUG if parsed_args.debug else logging.INFO
+    log_level = logging.DEBUG if parsed_args.debug else logging.INFO
 
-    logging.basicConfig(
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging_level
-    )
+    logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
     logging.getLogger("httpx").setLevel(logging.WARNING) # lower ptb logging
+    # Set log level for my loggers only
+    for name in logging.root.manager.loggerDict:
+        if name.startswith("challonge_bet_bot"):
+            logging.getLogger(name).setLevel(log_level)
 
     storage = Storage(DB_PATH)
     api_client = ChallongeClient()
