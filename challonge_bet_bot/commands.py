@@ -50,11 +50,12 @@ def command(desc="", filter=None, name=None, register=True):
     def decorator(func):
         cmd_name = name if name is not None else func.__name__
 
+        func = ensure_user_registered(func)
+        func = track_private_chats(func)
+
         if register:
             COMMANDS.append(Command(name=cmd_name, handler=func, description=desc, filter=filter))
 
-        func = ensure_user_registered(func)
-        func = track_private_chats(func)
         return func
     return decorator
 
