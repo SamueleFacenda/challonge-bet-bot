@@ -19,6 +19,7 @@ correctly set your env vars or a `.env` file with the following vars:
 - `CHALLONGE_CLIENT_ID`: not used right yet
 - `CHALLONGE_CLIENT_SECRET`: not used yet
 - `CHALLONGE_COMMUNITY_SUBDOMAIN`: optional subdomain of the community to use
+- `PLAYERS_START_BALANCE`: default to 1000, balance for new players
 
 > [!NOTE]
 > Challonge api V2 is not complete yet, we are using api V1
