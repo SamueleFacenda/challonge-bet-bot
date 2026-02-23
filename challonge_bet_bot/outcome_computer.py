@@ -60,10 +60,9 @@ def update_tournaments(context):
 
     jobs = context.job_queue.get_jobs_by_name(check_finished_tournaments.__name__)
     assert len(jobs) == 1, "There should be exactly one scheduled job for checking finished tournaments."
-    prev = jobs[0].enabled
-    jobs[0].enabled = check_job_needed
-    if prev != check_job_needed:
+    if jobs[0].enabled != check_job_needed:
         logger.info(f"{'Enabled' if check_job_needed else 'Disabled'} finished tournament checker job.")
+    jobs[0].enabled = check_job_needed
 
 async def handle_tournament_finished(context, tournament: ChallongeTournament):
     storage: Storage = context.bot_data['storage']

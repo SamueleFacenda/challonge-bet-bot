@@ -3,6 +3,9 @@ import argparse
 
 from telegram import BotCommand
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, ConversationHandler, MessageHandler, filters, ChatMemberHandler
+from telegram.warnings import PTBUserWarning
+from warnings import filterwarnings
+import colorlog
 
 from .storage import Storage
 from .api import ChallongeClient
@@ -29,14 +32,9 @@ def main():
     args = argparse.ArgumentParser(description="Challonge Bet Bot")
     args.add_argument("--debug", action="store_true", help="Enable debug logging")
     parsed_args = args.parse_args()
-    log_level = logging.DEBUG if parsed_args.debug else logging.INFO
 
-    logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
-    logging.getLogger("httpx").setLevel(logging.WARNING) # lower ptb logging
-    # Set log level for my loggers only
-    for name in logging.root.manager.loggerDict:
-        if name.startswith("challonge_bet_bot"):
-            logging.getLogger(name).setLevel(log_level)
+    log_level = logging.DEBUG if parsed_args.debug else logging.INFO
+    setup_logging(log_level)
 
     storage = Storage(DB_PATH)
     api_client = ChallongeClient()
@@ -88,3 +86,31 @@ def main():
         app.add_handler(CommandHandler(cmd.name, cmd.handler, filters=cmd.filter))# type: ignore callback type is too complex
 
     app.run_polling()
+
+def setup_logging(log_level):
+    formatter = colorlog.ColoredFormatter(
+        "[%(asctime)s - %(log_color)s%(levelname)s%(reset)s - %(name)s] %(body_log_color)s%(message)s%(reset)s",
+        secondary_log_colors={
+            'body': {
+                'DEBUG':    'blue',
+                'INFO':     'light_blue',
+                'WARNING':  'yellow',
+                'ERROR':    'red',
+                'CRITICAL': 'bold_red',
+            }
+        },
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+
+    logging.basicConfig(level=logging.INFO, handlers=[handler])
+    logging.getLogger("httpx").setLevel(logging.WARNING) # lower ptb logging
+    # Set log level for my loggers only
+    for name, logger in logging.root.manager.loggerDict.items():
+        if isinstance(logger, logging.Logger) and name.startswith("challonge_bet_bot"):
+            logger.setLevel(log_level)
+
+    # https://github.com/python-telegram-bot/python-telegram-bot/wiki/Frequently-Asked-Questions#what-do-the-per_-settings-in-conversationhandler-do
+    filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
