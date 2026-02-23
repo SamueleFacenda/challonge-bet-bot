@@ -12,7 +12,7 @@ async def check_finished_tournaments(context):
     update_tournaments(context) # update tournaments to get the latest status
     for tour in storage.get_tournaments_by_state(TournamentState.FINISHED):
         logger.info(f"Tournament {tour.name} just finished, computing outcomes...")
-        tour.state = TournamentState.FINALIZED # set here to avoid api cache
+        tour.state = TournamentState.FINALIZED # set here to avoid match api cache
 
         await handle_tournament_finished(context, tour)
 
@@ -68,9 +68,13 @@ def update_tournaments(context):
 async def handle_tournament_finished(context, tournament: ChallongeTournament):
     storage: Storage = context.bot_data['storage']
     api: ChallongeClient = context.bot_data['api_client']
-    
+
     quotes = get_quotes_for_tournament(tournament, storage)
     match_bets = storage.get_match_bets_for_tournament(tournament.challonge_id)
+    if not match_bets:
+        logger.info(f"No bets found for tournament {tournament.name}, skipping outcome computation.")
+        return
+
     amount = {b.user_id : b.amount for b in storage.get_bets_for_tournament(tournament.challonge_id)}
     results = {m.challonge_id:m for m in api.get_tournament_matches(tournament)}
     user_messages = {user_id: "" for user_id in amount.keys()}
@@ -106,10 +110,12 @@ async def handle_tournament_finished(context, tournament: ChallongeTournament):
         storage.update_user(user)
         await context.bot.send_message(chat_id=user_id, text=f"🏆 Tournament '{tournament.name}' has finished!\n\n{user_messages[user_id]}\nYour new balance is {user.balance:.2f} coins, delta is {result:.2f}.")
     
-    if player_results: # only send group message if there are bets
-        await send_group_messages(context, tournament)
+    await send_group_messages(context, tournament)
 
 def get_quotes_for_tournament(tournament: ChallongeTournament, storage: Storage):
+    """
+    Dict of winner -> loser -> amount, number of bets on this result.
+    """
     quotes = storage.get_tournament_quotes(tournament.challonge_id)
     quote_mapping = defaultdict(dict)
     for winner, loser, amount in quotes:
