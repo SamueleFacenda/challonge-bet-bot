@@ -1,12 +1,16 @@
 import re
 from dataclasses import dataclass
+import logging
+
+from telegram import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Update
+from telegram.ext import ConversationHandler, filters
+
 from .storage import Bet, MatchBet, TournamentState, User, Storage, ChallongeTournament, ChallongeMatch
 from .api import ChallongeClient
 from .broadcast import track_private_chats
 from .outcome_computer import update_tournaments
 
-from telegram import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Update
-from telegram.ext import ConversationHandler, filters
+logger = logging.getLogger(__name__)
 
 START_BALANCE = 1000 # TODO make this configurable
 
@@ -18,7 +22,7 @@ def ensure_user_registered(func):
         storage = context.bot_data['storage']
         user_id = update.message.from_user.id
         if not storage.get_user(user_id):
-            print(f"Registering new user with Telegram ID: {user_id}")
+            logger.info(f"Registering new user with Telegram ID: {user_id}")
             user = User(
                 telegram_id=user_id,
                 username=update.message.from_user.username or "",

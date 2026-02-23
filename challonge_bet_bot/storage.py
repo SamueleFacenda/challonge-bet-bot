@@ -1,8 +1,11 @@
-from http.client import CREATED
+from math import log
 import sqlite3
 from datetime import datetime
 from dataclasses import dataclass
 from enum import IntEnum
+import logging
+
+logger = logging.getLogger(__name__)
 
 INIT_QUERY = """
 CREATE TABLE IF NOT EXISTS bets (
@@ -148,6 +151,7 @@ class Storage:
         return None
     
     def add_user(self, user: User):
+        logger.debug(f"Adding user: {user}")
         cursor = self.conn.cursor()
         cursor.execute(
             "INSERT OR IGNORE INTO users (telegram_id, username, balance) VALUES (?, ?, ?)",
@@ -156,6 +160,7 @@ class Storage:
         self.conn.commit()
 
     def update_user(self, user: User):
+        logger.debug(f"Updating user: {user}")
         cursor = self.conn.cursor()
         cursor.execute(
             "UPDATE users SET balance = ? WHERE telegram_id = ?",
@@ -222,6 +227,7 @@ class Storage:
         ]
     
     def add_bet(self, bet: Bet):
+        logger.info(f"Adding bet: {bet}")
         cursor = self.conn.cursor()
         cursor.execute(
             "INSERT INTO bets (user_id, challonge_tournament_id, amount) VALUES (?, ?, ?)",
@@ -230,6 +236,7 @@ class Storage:
         self.conn.commit()
 
     def add_match_bets(self, match_bets: list[MatchBet]):
+        logger.debug(f"Adding match bets: {match_bets}")
         cursor = self.conn.cursor()
         cursor.executemany(
             "INSERT INTO match_bets (user_id, challonge_tournament_id, challonge_match_id, challonge_winner_id, challonge_loser_id) VALUES (?, ?, ?, ?, ?)",
@@ -287,6 +294,7 @@ class Storage:
         ]
     
     def add_challonge_tournament(self, tournament: ChallongeTournament):
+        logger.info(f"Adding challonge tournament: {tournament}")
         cursor = self.conn.cursor()
         cursor.execute(
             "INSERT OR REPLACE INTO challonge_tournaments (challonge_id, name, state) VALUES (?, ?, ?)",
@@ -295,6 +303,7 @@ class Storage:
         self.conn.commit()
 
     def update_challonge_tournament(self, tournament: ChallongeTournament):
+        logger.info(f"Updating challonge tournament: {tournament}")
         cursor = self.conn.cursor()
         cursor.execute(
             "UPDATE challonge_tournaments SET name = ?, state = ? WHERE challonge_id = ?",
@@ -303,6 +312,7 @@ class Storage:
         self.conn.commit()
 
     def add_challonge_matches(self, matches: list[ChallongeMatch]):
+        logger.info(f"Adding challonge matches: {matches}")
         cursor = self.conn.cursor()
         cursor.executemany(
             "INSERT OR REPLACE INTO challonge_matches (challonge_id, tournament_id, started, player1_id, player1_match_id, player1_is_match_loser, player2_id, player2_match_id, player2_is_match_loser, winner_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -326,6 +336,7 @@ class Storage:
         return None
     
     def save_access_token(self, token: AccessToken):
+        logger.info(f"Saving access token for user: {token.user}")
         cursor = self.conn.cursor()
         cursor.execute(
             "INSERT INTO oauth_tokens (user, access_token, refresh_token, expires_at) VALUES (?, ?, ?, ?)",
@@ -334,6 +345,7 @@ class Storage:
         self.conn.commit()
 
     def add_chat(self, chat_id: int, is_group: bool):
+        logger.debug(f"Adding chat: {chat_id}, is_group: {is_group}")
         cursor = self.conn.cursor()
         cursor.execute(
             "INSERT OR IGNORE INTO chats (chat_id, is_group) VALUES (?, ?)",
@@ -342,6 +354,7 @@ class Storage:
         self.conn.commit()
 
     def remove_chat(self, chat_id: int):
+        logger.debug(f"Removing chat: {chat_id}")
         cursor = self.conn.cursor()
         cursor.execute(
             "DELETE FROM chats WHERE chat_id = ?",

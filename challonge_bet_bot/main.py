@@ -1,12 +1,15 @@
-from .storage import Storage
-from .api import ChallongeClient
-from .conf import TELEGRAM_BOT_TOKEN
-from .commands import COMMANDS, bet, select_tournament, handle_prediction, handle_amount, STATE_AMOUNT, STATE_PREDICTING, STATE_TOURNAMENT
-from .outcome_computer import check_finished_tournaments
-from .broadcast import track_group_chats
+import logging
+import argparse
 
 from telegram import BotCommand
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, ConversationHandler, MessageHandler, filters, ChatMemberHandler
+
+from .storage import Storage
+from .api import ChallongeClient
+from .conf import TELEGRAM_BOT_TOKEN, DB_PATH
+from .commands import COMMANDS, bet, select_tournament, handle_prediction, handle_amount, STATE_AMOUNT, STATE_PREDICTING, STATE_TOURNAMENT
+from .outcome_computer import check_finished_tournaments
+from .broadcast import track_group_chats
 
 
 async def update_token_job(context: ContextTypes.DEFAULT_TYPE):
@@ -23,7 +26,17 @@ async def post_init(application):
     await application.bot.set_my_commands(commands)
 
 def main():
-    storage = Storage("db.sqlite3")
+    args = argparse.ArgumentParser(description="Challonge Bet Bot")
+    args.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parsed_args = args.parse_args()
+    logging_level = logging.DEBUG if parsed_args.debug else logging.INFO
+
+    logging.basicConfig(
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging_level
+    )
+    logging.getLogger("httpx").setLevel(logging.WARNING) # lower ptb logging
+
+    storage = Storage(DB_PATH)
     api_client = ChallongeClient()
 
     # -5158183686

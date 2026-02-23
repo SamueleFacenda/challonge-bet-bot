@@ -1,13 +1,17 @@
-from .storage import AccessToken, ChallongeMatch, ChallongeTournament, TournamentState
-import requests as req
+import logging
+
 from cachetools import TTLCache, cached
+import requests as req
+
+from .storage import AccessToken, ChallongeMatch, ChallongeTournament, TournamentState
+from .conf import CHALLONGE_APIV1_TOKEN, CHALLONGE_COMMUNITY_SUBDOMAIN
 
 CACHE_MAXSIZE = 256
 
-from .conf import CHALLONGE_APIV1_TOKEN, CHALLONGE_COMMUNITY_SUBDOMAIN
-
 # Challonge api integration
 API_BASE_URL = "https://api.challonge.com/v1"
+
+logger = logging.getLogger(__name__)
 
 class ChallongeClient:
     """
@@ -50,7 +54,7 @@ class ChallongeClient:
             **({"subdomain": CHALLONGE_COMMUNITY_SUBDOMAIN} if CHALLONGE_COMMUNITY_SUBDOMAIN else {})
             })
         # print res url
-        print(f"Requesting tournaments with URL: {res.url}")
+        logger.debug(f"Requesting tournaments with URL: {res.url}")
         if res.status_code == 200:
             return [ChallongeTournament(
                 challonge_id=(t := tour['tournament'])['id'],
@@ -59,7 +63,7 @@ class ChallongeClient:
                     (TournamentState.LOCKED if t['started_at'] else TournamentState.CREATED),
             ) for tour in res.json()]
         else:
-            print(f"Failed to fetch tournaments: {res.status_code} - {res.text}")
+            logger.error(f"Failed to fetch tournaments: {res.status_code} - {res.text}")
             return []
 
     @cached(cache=TTLCache(maxsize=CACHE_MAXSIZE, ttl=60)) # ttl cache, maybe needs to be removed
@@ -67,7 +71,7 @@ class ChallongeClient:
         res = self.session.get(f"{API_BASE_URL}/tournaments/{tournament.challonge_id}/matches.json", params={
             "api_key": CHALLONGE_APIV1_TOKEN,
         })
-        print(f"Requesting matches for tournament {tournament.name} with URL: {res.url}")
+        logger.debug(f"Requesting matches for tournament {tournament.name} with URL: {res.url}")
         if res.status_code == 200:
             return [ChallongeMatch(
                 challonge_id=(m := match['match'])['id'],
@@ -82,7 +86,7 @@ class ChallongeClient:
                 winner_id=m['winner_id']
             ) for match in res.json()]
         else:
-            print(f"Failed to fetch matches for tournament {tournament.name}: {res.status_code} - {res.text}")
+            logger.error(f"Failed to fetch matches for tournament {tournament.name}: {res.status_code} - {res.text}")
             return []
         
     @cached(cache={}) # no ttl, use tournament state as key too
@@ -90,11 +94,11 @@ class ChallongeClient:
         res = self.session.get(f"{API_BASE_URL}/tournaments/{tournament.challonge_id}/participants.json", params={
             "api_key": CHALLONGE_APIV1_TOKEN,
         })
-        print(f"Requesting players for tournament {tournament.name} with URL: {res.url}")
+        logger.debug(f"Requesting players for tournament {tournament.name} with URL: {res.url}")
         if res.status_code == 200:
             return {(p := part['participant'])['id']: p for part in res.json()}
         else:
-            print(f"Failed to fetch players for tournament {tournament.name}: {res.status_code} - {res.text}")
+            logger.error(f"Failed to fetch players for tournament {tournament.name}: {res.status_code} - {res.text}")
             return {}
 
     def get_user(self):
