@@ -4,25 +4,30 @@ from .broadcast import send_to_all_group_chats
 
 from collections import defaultdict
 
-async def update_and_check_finished_tournaments(context):
+async def check_finished_tournaments(context):
     storage: Storage = context.bot_data['storage']
-    api: ChallongeClient = context.bot_data['api_client']
-    update_tournaments(api, storage) # update tournaments to get the latest status
+    update_tournaments(context) # update tournaments to get the latest status
     for tour in storage.get_tournaments_by_state(TournamentState.FINISHED):
         print(f"Tournament {tour.name} just finished, computing outcomes...")
+        tour.state = TournamentState.FINALIZED # set here to avoid api cache
+
         await handle_tournament_finished(context, tour)
 
-        tour.state = TournamentState.FINALIZED
         storage.update_challonge_tournament(tour)
+    
         print(f"Tournament {tour.name} outcomes computed and finalized!")
 
-    if storage.get_tournaments_by_state(TournamentState.RUNNING):
-        enable_scheduled_check_job(context)
-    else:
-        disable_scheduled_check_job(context)
+def update_tournaments(context):
+    """
+    Updates the tournaments storage, plus some business logic:
+    - store tournament matches (only one time per tournament)
+    - starts and stops the finished tournament checker job when needed
+    """
+    storage: Storage = context.bot_data['storage']
+    api: ChallongeClient = context.bot_data['api_client']
 
-def update_tournaments(api: ChallongeClient, storage: Storage):
     tournaments = api.get_tournaments()
+    check_job_needed = False
     for updated in tournaments:
         stored = storage.get_challonge_tournament(updated.challonge_id)
 
@@ -37,20 +42,19 @@ def update_tournaments(api: ChallongeClient, storage: Storage):
                 # When gets locked store the matches, only here and one time
                 storage.add_challonge_matches(matches)
 
+            check_job_needed = True # someone might have bet, poll to check when it finishes
+
+        if updated.state == TournamentState.RUNNING or updated.state == TournamentState.FINISHED:
+            check_job_needed = True # poll to check when it finishes and to compute outcomes
+
         if not stored:
             storage.add_challonge_tournament(updated)
         elif updated.state > stored.state: # only update if the state goes forward
             storage.update_challonge_tournament(updated)
 
-def enable_scheduled_check_job(context):
-    jobs = context.job_queue.get_jobs_by_name(update_and_check_finished_tournaments.__name__)
+    jobs = context.job_queue.get_jobs_by_name(check_finished_tournaments.__name__)
     assert len(jobs) == 1, "There should be exactly one scheduled job for checking finished tournaments."
-    jobs[0].enabled = True
-
-def disable_scheduled_check_job(context):
-    jobs = context.job_queue.get_jobs_by_name(update_and_check_finished_tournaments.__name__)
-    assert len(jobs) == 1, "There should be exactly one scheduled job for checking finished tournaments."
-    jobs[0].enabled = False
+    jobs[0].enabled = check_job_needed
 
 async def handle_tournament_finished(context, tournament: ChallongeTournament):
     storage: Storage = context.bot_data['storage']
@@ -93,7 +97,8 @@ async def handle_tournament_finished(context, tournament: ChallongeTournament):
         storage.update_user(user)
         await context.bot.send_message(chat_id=user_id, text=f"🏆 Tournament '{tournament.name}' has finished!\n\n{user_messages[user_id]}\nYour new balance is {user.balance:.2f} coins, delta is {result:.2f}.")
     
-    await send_group_messages(context, tournament)
+    if player_results: # only send group message if there are bets
+        await send_group_messages(context, tournament)
 
 def get_quotes_for_tournament(tournament: ChallongeTournament, storage: Storage):
     quotes = storage.get_tournament_quotes(tournament.challonge_id)

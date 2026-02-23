@@ -2,7 +2,7 @@ from .storage import Storage
 from .api import ChallongeClient
 from .conf import TELEGRAM_BOT_TOKEN
 from .commands import COMMANDS, bet, select_tournament, handle_prediction, handle_amount, STATE_AMOUNT, STATE_PREDICTING, STATE_TOURNAMENT
-from .outcome_computer import update_and_check_finished_tournaments
+from .outcome_computer import check_finished_tournaments
 from .broadcast import track_group_chats
 
 from telegram import BotCommand
@@ -51,7 +51,7 @@ def main():
     # )
 
     app.job_queue.run_repeating(
-        callback=update_and_check_finished_tournaments,
+        callback=check_finished_tournaments,
         interval=300, # check every 5 minutes
         first=1, # run immediately (then probably disabled)
     )

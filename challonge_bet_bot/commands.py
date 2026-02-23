@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from .storage import Bet, MatchBet, TournamentState, User, Storage, ChallongeTournament, ChallongeMatch
 from .api import ChallongeClient
 from .broadcast import track_private_chats
-from .outcome_computer import update_and_check_finished_tournaments
+from .outcome_computer import update_tournaments
 
 from telegram import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Update
 from telegram.ext import ConversationHandler, filters
@@ -124,7 +124,7 @@ async def bet_not_in_group(update, context):
 async def bet(update, context):
     storage: Storage = context.bot_data['storage']
 
-    await update_and_check_finished_tournaments(context)
+    update_tournaments(context)
     tournaments = storage.get_tournaments_by_state(TournamentState.LOCKED)
     if not tournaments:
         await update.message.reply_text("Sorry, there are currently no tournaments open for betting.")
@@ -224,7 +224,7 @@ async def handle_amount(update, context) -> int:
         return STATE_AMOUNT
     
     # check if the tournament started in the meantime
-    await update_and_check_finished_tournaments(context)
+    update_tournaments(context)
     updated = storage.get_challonge_tournament(context.user_data['selected_tournament'].challonge_id)
     if updated and updated.state > TournamentState.LOCKED:
         await update.message.reply_text("Sorry, the tournament is no longer open for betting.")

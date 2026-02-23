@@ -43,7 +43,7 @@ class ChallongeClient:
     def get_communities(self):
         return []
         
-    @cached(cache=TTLCache(maxsize=CACHE_MAXSIZE, ttl=30))
+    @cached(cache=TTLCache(maxsize=CACHE_MAXSIZE, ttl=60)) # takes even more than ttl for challonge to update
     def get_tournaments(self) -> list[ChallongeTournament]:
         res = self.session.get(f"{API_BASE_URL}/tournaments.json", params={
             "api_key": CHALLONGE_APIV1_TOKEN,
@@ -62,7 +62,7 @@ class ChallongeClient:
             print(f"Failed to fetch tournaments: {res.status_code} - {res.text}")
             return []
 
-    @cached(cache=TTLCache(maxsize=CACHE_MAXSIZE, ttl=30)) # ttl cache, maybe needs to be removed
+    @cached(cache=TTLCache(maxsize=CACHE_MAXSIZE, ttl=60)) # ttl cache, maybe needs to be removed
     def get_tournament_matches(self, tournament: ChallongeTournament) -> list[ChallongeMatch]:
         res = self.session.get(f"{API_BASE_URL}/tournaments/{tournament.challonge_id}/matches.json", params={
             "api_key": CHALLONGE_APIV1_TOKEN,
