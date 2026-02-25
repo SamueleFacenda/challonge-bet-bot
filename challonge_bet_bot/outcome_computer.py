@@ -133,7 +133,10 @@ async def send_group_messages(context, tournament: ChallongeTournament):
     players = context.bot_data['api_client'].get_tournament_players(tournament)
     for winner, losers in quotes.items():
         for loser, amount in losers.items():
-            against = quotes[loser][winner]
+            if loser in quotes and winner in quotes[loser]:
+                against = quotes[loser][winner]
+            else:
+                against = 0
             quote = against / amount
             message += f"{quote:.2f} for {players[winner]['display_name']} to beat {players[loser]['display_name']}\n"
 
