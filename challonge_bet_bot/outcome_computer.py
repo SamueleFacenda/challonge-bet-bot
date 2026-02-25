@@ -92,7 +92,10 @@ async def handle_tournament_finished(context, tournament: ChallongeTournament):
         
         if bet.challonge_winner_id == match.winner_id:
             same_bet = quotes[bet.challonge_winner_id][bet.challonge_loser_id]
-            against_bet = quotes[bet.challonge_loser_id][bet.challonge_winner_id]
+            if bet.challonge_loser_id in quotes and bet.challonge_winner_id in quotes[bet.challonge_loser_id]:
+                against_bet = quotes[bet.challonge_loser_id][bet.challonge_winner_id]
+            else:
+                against_bet = 0
             earning = amount[bet.user_id] * against_bet / same_bet
             player_results[bet.user_id] += earning
             user_messages[bet.user_id] += f"✅ You won {earning:.2f} coins on match "
