@@ -83,6 +83,9 @@ async def handle_tournament_finished(context, tournament: ChallongeTournament):
     player_results = defaultdict(float)
     for bet in match_bets:
         match = results[bet.challonge_match_id]
+        if match.winner_id is None and match.optional:
+            continue # skip optional matches that didn't start, they don't affect the outcome
+
         assert(match.winner_id is not None), f"Match {match.challonge_id} in tournament {tournament.name} does not have a winner yet, but the tournament is marked as finished."
         assert(match.player1_id is not None and match.player2_id is not None), f"Match {match.challonge_id} in tournament {tournament.name} does not have both players set."
 

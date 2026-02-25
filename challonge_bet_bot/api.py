@@ -77,6 +77,7 @@ class ChallongeClient:
                 challonge_id=(m := match['match'])['id'],
                 tournament_id=tournament.challonge_id,
                 started=m['underway_at'] is not None,
+                optional=m['optional'],
                 player1_id=m['player1_id'],
                 player1_match_id=m['player1_prereq_match_id'],
                 player1_is_match_loser=m['player1_is_prereq_match_loser'], # not available in v1
