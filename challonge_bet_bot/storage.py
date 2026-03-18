@@ -164,8 +164,8 @@ class Storage:
         logger.debug(f"Updating user: {user}")
         cursor = self.conn.cursor()
         cursor.execute(
-            "UPDATE users SET balance = ? WHERE telegram_id = ?",
-            (user.balance, user.telegram_id)
+            "UPDATE users SET balance = ?, username = ? WHERE telegram_id = ?",
+            (user.balance, user.username, user.telegram_id)
         )
         self.conn.commit()
 

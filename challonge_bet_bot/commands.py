@@ -18,9 +18,18 @@ def ensure_user_registered(func):
     Decorator to ensure the user is registered in the database before executing the command.
     """
     async def wrapper(update, context):
-        storage = context.bot_data['storage']
+        storage: Storage = context.bot_data['storage']
         user_id = update.message.from_user.id
-        if not storage.get_user(user_id):
+
+        username = update.message.from_user.first_name
+        if update.message.from_user.last_name:
+            username += " " + update.message.from_user.last_name
+        if update.message.from_user.username:
+            username += f" (@{update.message.from_user.username})"
+
+        stored = storage.get_user(user_id)
+
+        if not stored:
             logger.info(f"Registering new user with Telegram ID: {user_id}")
             user = User(
                 telegram_id=user_id,
@@ -28,6 +37,11 @@ def ensure_user_registered(func):
                 balance=CONFIG.players_start_balance
             )
             storage.add_user(user)
+        elif stored.username != username:
+            logger.info(f"Updating username for user {user_id} from '{stored.username}' to '{username}'")
+            stored.username = username
+            storage.update_user(stored)
+
         return await func(update, context)
     return wrapper
 
@@ -107,9 +121,9 @@ async def rank(update, context):
     ranking_text = "Top Users:\n"
     for i, user in enumerate(top_users[:10], start=1):
         ranking_text += f"{i}. {user.username} - balance: {user.balance}\n"
-    user_position = next((i for i, user in enumerate(top_users, start=1) if user.telegram_id == update.message.from_user.id), None)
+    user_position, user = next(((i, user) for i, user in enumerate(top_users, start=1) if user.telegram_id == update.message.from_user.id))
     if user_position and user_position > 10:
-        ranking_text += f"\nYour position: {user_position}. {update.message.from_user.username} - balance: {storage.get_user(update.message.from_user.id).balance}\n"
+        ranking_text += f"\nYour position: {user_position}. {user.username} - balance: {user.balance}\n"
 
     await update.message.reply_text(ranking_text)
 
