@@ -169,7 +169,8 @@ async def select_tournament(update: Update, context):
 
     context.user_data['selected_tournament'] = tournament
     context.user_data['predictions'] = [] # [MatchBet(...), ...]
-    context.user_data['to_predict'] = storage.get_challonge_matches_for_tournament(tournament.challonge_id)
+    matches = storage.get_challonge_matches_for_tournament(tournament.challonge_id)
+    context.user_data['to_predict'] = [x for x in matches if x.winner_id is None]
     return await ask_match(update, context)
 
 async def ask_match(update, context) -> int:

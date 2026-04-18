@@ -13,6 +13,15 @@ API_BASE_URL = "https://api.challonge.com/v1"
 
 logger = logging.getLogger(__name__)
 
+class TimeoutSession(req.Session):
+    def __init__(self, timeout=10, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._timeout = timeout
+    def request(self, method, url, **kwargs):
+        if 'timeout' not in kwargs:
+            kwargs['timeout'] = self._timeout
+        return super().request(method, url, **kwargs)
+
 class ChallongeClient:
     """
     A wrapper for the Challonge API v1 using Python req.
@@ -24,7 +33,7 @@ class ChallongeClient:
         Initialize the client. Get's the api key from the environment variable
     
         """
-        self.session = req.Session()
+        self.session = TimeoutSession(timeout=10)
         
         # Standard headers required by Challonge v2.1 JSON:API spec
         self.session.headers.update({
@@ -77,7 +86,7 @@ class ChallongeClient:
                 challonge_id=(m := match['match'])['id'],
                 tournament_id=tournament.challonge_id,
                 started=m['underway_at'] is not None,
-                optional=m['optional'],
+                optional=m['optional'] is not None and m['optional'],
                 player1_id=m['player1_id'],
                 player1_match_id=m['player1_prereq_match_id'],
                 player1_is_match_loser=m['player1_is_prereq_match_loser'], # not available in v1
